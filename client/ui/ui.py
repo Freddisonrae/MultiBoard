@@ -109,8 +109,7 @@ cup.create_polygon(50, 50, 150, 50, 170, 150, 30, 150, fill="black")
 tk.Label(lb_right, text="36 Kekse", font=("Arial", 16)).pack(pady=20)
 
 
-# Startscreen setzen
+
 show_frame(challenge_frame)
 
 root.mainloop()
-#goonhub
