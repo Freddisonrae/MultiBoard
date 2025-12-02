@@ -113,4 +113,4 @@ tk.Label(lb_right, text="36 Kekse", font=("Arial", 16)).pack(pady=20)
 show_frame(challenge_frame)
 
 root.mainloop()
-
+#goonhub
