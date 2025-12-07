@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin-Panel - School Puzzle Game</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="app">
+        <!-- Login-Bereich -->
+        <div id="login-container" class="container">
+            <div class="login-box">
+                <h1>🎓 School Puzzle Game</h1>
+                <h2>Lehrer-Anmeldung</h2>
+                <form id="login-form">
+                    <input type="text" id="username" placeholder="Benutzername" required>
+                    <input type="password" id="password" placeholder="Passwort" required>
+                    <button type="submit">Anmelden</button>
+                </form>
+                <div id="login-error" class="error"></div>
+            </div>
+        </div>
+
+        <!-- Dashboard -->
+        <div id="dashboard-container" class="container" style="display: none;">
+            <header>
+                <h1>🎓 School Puzzle Game - Admin-Panel</h1>
+                <div class="user-info">
+                    <span id="user-name"></span>
+                    <button id="logout-btn" class="btn-secondary">Abmelden</button>
+                </div>
+            </header>
+
+            <nav class="tabs">
+                <button class="tab active" data-tab="rooms">Räume</button>
+                <button class="tab" data-tab="puzzles">Rätsel</button>
+                <button class="tab" data-tab="students">Schüler</button>
+                <button class="tab" data-tab="stats">Statistiken</button>
+            </nav>
+
+            <!-- Räume-Tab -->
+            <div id="rooms-tab" class="tab-content active">
+                <div class="toolbar">
+                    <h2>Meine Räume</h2>
+                    <button id="create-room-btn" class="btn-primary">+ Neuer Raum</button>
+                </div>
+                <div id="rooms-list" class="items-grid"></div>
+            </div>
+
+            <!-- Rätsel-Tab -->
+            <div id="puzzles-tab" class="tab-content">
+                <div class="toolbar">
+                    <h2>Rätsel verwalten</h2>
+                    <select id="room-select">
+                        <option value="">Raum auswählen...</option>
+                    </select>
+                    <button id="create-puzzle-btn" class="btn-primary">+ Neues Rätsel</button>
+                </div>
+                <div id="puzzles-list" class="items-list"></div>
+            </div>
+
+            <!-- Schüler-Tab -->
+            <div id="students-tab" class="tab-content">
+                <div class="toolbar">
+                    <h2>Schüler verwalten</h2>
+                    <button id="create-student-btn" class="btn-primary">+ Neuer Schüler</button>
+                </div>
+                <div id="students-list" class="items-list"></div>
+            </div>
+
+            <!-- Statistiken-Tab -->
+            <div id="stats-tab" class="tab-content">
+                <h2>Statistiken & Fortschritt</h2>
+                <div id="stats-content">
+                    <p>Statistiken werden hier angezeigt...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modale Dialoge -->
+    <div id="modal-overlay" class="modal-overlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 id="modal-title">Modal</h3>
+                <button id="modal-close">&times;</button>
+            </div>
+            <div class="modal-body" id="modal-body"></div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
