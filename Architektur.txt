@@ -1,0 +1,43 @@
+Bitte vollständig erhalten. Lg Freddy
+Grundlegende Version von Ki erstellt
+
+
+MultiRoom/
+├── server/
+│   ├── main.py                 # FastAPI Server
+│   ├── database.py             # Datenbankverbindung
+│   ├── models.py               # SQLAlchemy Models
+│   ├── schemas.py              # Pydantic Schemas
+│   ├── auth.py                 # Authentifizierung
+│   ├── routes/
+│   │   ├── __init__.py
+│   │   ├── admin.py            # Admin-Endpunkte
+│   │   ├── game.py             # Spiel-Endpunkte
+│   │   └── websocket.py        # WebSocket-Endpunkte
+│   ├── static/                 # Statische Dateien (Admin-Panel)
+│   │   └── admin/
+│   │       ├── index.html
+│   │       ├── style.css
+│   │       └── script.js
+│   ├── h5p_content/            # H5P-Inhalte
+│   └── requirements.txt
+├── client/
+│   ├── main.py                 # PySide6 Desktop-App
+│   ├── ui/
+│   │   ├── __init__.py
+│   │   ├── main_window.py      # Hauptfenster
+│   │   ├── login_dialog.py     # Login-Dialog
+│   │   └── game_widget.py      # Spiel-Widget
+│   ├── api/
+│   │   ├── __init__.py
+│   │   └── client.py           # API-Client
+│   ├── utils/
+│   │   ├── __init__.py
+│   │   └── h5p_renderer.py     # H5P-Renderer
+│   └── requirements.txt
+├── shared/
+│   ├── __init__.py
+│   └── models.py               # Gemeinsame Datenmodelle
+├── database/
+│   └── schema.sql              # Datenbank-Schema
+└── README.md

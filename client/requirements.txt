@@ -1,0 +1,3 @@
+PySide6>=6.8.0
+requests>=2.31.0
+websockets>=12.0
