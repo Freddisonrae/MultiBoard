@@ -39,7 +39,7 @@ app.add_middleware(
 # Statische Dateien für Admin-Panel
 app.mount(
     "/admin",
-    StaticFiles(directory=os.path.join(BASE_DIR, "static", "admin"), html=True),
+    StaticFiles(directory=os.path.join(BASE_DIR, "static"), html=True),
     name="admin"
 )
 
@@ -151,7 +151,7 @@ if __name__ == "__main__":
     # Production: ohne Reload, mit mehreren Workern
     uvicorn.run(
         "server.main:app",
-        host="0.0.0.0",
+        host="localhost",
         port=8000,
         reload=True,
         log_level="info"
