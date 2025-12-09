@@ -1,9 +1,6 @@
 -- Datenbank-Schema für Multi-Room-Schul-Rätselspiel
 -- MariaDB/MySQL
 
-CREATE DATABASE IF NOT EXISTS school_puzzle_game CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-USE abiprj25;
-
 -- Benutzer-Tabelle (Lehrer und Schüler)
 CREATE TABLE users (
     id INT AUTO_INCREMENT PRIMARY KEY,
