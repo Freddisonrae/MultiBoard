@@ -104,6 +104,7 @@ class LoginDialog(QDialog):
         return """
             QLineEdit {
                 background-color: white;
+                color: black;              
                 border: none;
                 border-radius: 8px;
                 padding: 12px;
