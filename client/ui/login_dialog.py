@@ -112,6 +112,7 @@ class LoginDialog(QDialog):
             }
             QLineEdit:focus {
                 background-color: #ffffff;
+                color: black;              
             }
         """
 
