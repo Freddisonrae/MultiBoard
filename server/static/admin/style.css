@@ -1,0 +1,231 @@
+/* ---------------------------------------------------
+   Allgemeines Layout
+--------------------------------------------------- */
+body {
+    margin: 0;
+    font-family: "Segoe UI", Roboto, sans-serif;
+    background: #f4f6f9;
+    color: #222;
+}
+
+h1, h2, h3 {
+    margin: 0;
+}
+
+.container {
+    padding: 20px;
+}
+
+/* ---------------------------------------------------
+   Login
+--------------------------------------------------- */
+#login-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+}
+
+.login-box {
+    background: #fff;
+    padding: 40px 50px;
+    border-radius: 14px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.1);
+    width: 360px;
+    text-align: center;
+}
+
+.login-box input {
+    width: 100%;
+    padding: 12px;
+    margin-top: 12px;
+    border: 1px solid #ccc;
+    border-radius: 10px;
+    font-size: 15px;
+}
+
+.login-box button {
+    width: 100%;
+    padding: 12px;
+    margin-top: 20px;
+    background: #4b82f3;
+    border: none;
+    color: #fff;
+    font-size: 16px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.login-box button:hover {
+    background: #3a6fd0;
+}
+
+.error {
+    margin-top: 10px;
+    color: #d9534f;
+    font-size: 14px;
+}
+
+/* ---------------------------------------------------
+   Dashboard Header
+--------------------------------------------------- */
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #fff;
+    padding: 20px;
+    border-radius: 14px;
+    box-shadow: 0 3px 12px rgba(0,0,0,0.06);
+}
+
+.user-info {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.btn-secondary {
+    background: #dedede;
+    border: none;
+    padding: 10px 18px;
+    border-radius: 10px;
+    cursor: pointer;
+}
+
+.btn-secondary:hover {
+    background: #c9c9c9;
+}
+
+/* ---------------------------------------------------
+   Tabs Navigation
+--------------------------------------------------- */
+.tabs {
+    margin-top: 20px;
+    display: flex;
+    gap: 10px;
+}
+
+.tab {
+    background: #fff;
+    padding: 12px 20px;
+    border-radius: 10px;
+    border: 1px solid #ddd;
+    cursor: pointer;
+}
+
+.tab.active {
+    background: #4b82f3;
+    color: #fff;
+    border: none;
+}
+
+/* ---------------------------------------------------
+   Tabs Inhalt
+--------------------------------------------------- */
+.tab-content {
+    display: none;
+    margin-top: 25px;
+    background: #fff;
+    padding: 20px;
+    border-radius: 14px;
+    box-shadow: 0 3px 12px rgba(0,0,0,0.06);
+}
+
+.tab-content.active {
+    display: block;
+}
+
+/* ---------------------------------------------------
+   Buttons & Toolbars
+--------------------------------------------------- */
+.toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.btn-primary {
+    background: #4b82f3;
+    color: white;
+    padding: 10px 16px;
+    border-radius: 10px;
+    cursor: pointer;
+    border: none;
+    transition: 0.2s;
+}
+
+.btn-primary:hover {
+    background: #3a6fd0;
+}
+
+/* ---------------------------------------------------
+   Räume / Items Grid
+--------------------------------------------------- */
+.items-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 18px;
+}
+
+.items-grid .item {
+    background: #fdfdfd;
+    padding: 20px;
+    border-radius: 14px;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.05);
+}
+
+/* ---------------------------------------------------
+   Listen
+--------------------------------------------------- */
+.items-list .item {
+    background: #fff;
+    padding: 18px;
+    border-radius: 12px;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.05);
+    margin-bottom: 15px;
+}
+
+/* ---------------------------------------------------
+   Modal
+--------------------------------------------------- */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.35);
+    display: none;
+    justify-content: center;
+    align-items: center;
+}
+
+.modal {
+    background: white;
+    padding: 0;
+    width: 420px;
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.25);
+}
+
+.modal-header {
+    background: #4b82f3;
+    color: #fff;
+    padding: 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+#modal-close {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 24px;
+    cursor: pointer;
+}
+
+.modal-body {
+    padding: 20px;
+}

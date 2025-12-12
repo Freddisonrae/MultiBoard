@@ -8,6 +8,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from datetime import timedelta
 import sys
+import os
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 sys.path.append('..')
 
@@ -34,7 +37,11 @@ app.add_middleware(
 )
 
 # Statische Dateien für Admin-Panel
-app.mount("/admin", StaticFiles(directory="static/admin", html=True), name="admin")
+app.mount(
+    "/admin",
+    StaticFiles(directory=os.path.join(BASE_DIR, "static"), html=True),
+    name="admin"
+)
 
 # Routen registrieren
 app.include_router(admin.router)
@@ -143,11 +150,12 @@ if __name__ == "__main__":
     # Development: mit Reload
     # Production: ohne Reload, mit mehreren Workern
     uvicorn.run(
-        "main:app",
-        host="0.0.0.0",
+        "server.main:app",
+        host="localhost",
         port=8000,
-        reload=True,  # Nur für Development
+        reload=True,
         log_level="info"
     )
+
 
 
