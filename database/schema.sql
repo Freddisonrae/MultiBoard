@@ -100,6 +100,7 @@ INSERT INTO users (username, password_hash, role, full_name) VALUES
 INSERT INTO rooms (name, description, teacher_id, is_active) VALUES
 ('Mathe-Rätsel Raum 1', 'Grundlegende Mathematik-Rätsel für Klasse 5', 1, TRUE);
 
+
 -- Beispiel-Rätsel (Multiple Choice)
 INSERT INTO puzzles (room_id, title, h5p_json, puzzle_type, order_index, points) VALUES
 (1, 'Was ist 5 + 3?', '{"question": "Was ist 5 + 3?", "options": ["6", "7", "8", "9"], "correct": 2}', 'multiple_choice', 1, 10),

@@ -17,6 +17,7 @@ class User(Base):
     full_name = Column(String(200))
     created_at = Column(DateTime, default=datetime.utcnow)
 
+
     # Relationships
     rooms = relationship("Room", back_populates="teacher")
     game_sessions = relationship("GameSession", back_populates="student")
@@ -30,7 +31,6 @@ class Room(Base):
     name = Column(String(200), nullable=False)
     description = Column(Text)
     teacher_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
-    is_active = Column(Boolean, default=False, index=True)
     time_limit_minutes = Column(Integer, default=60)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

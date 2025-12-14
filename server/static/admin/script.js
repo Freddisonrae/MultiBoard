@@ -1,4 +1,4 @@
-// Admin-Panel JavaScript
+// Admin-Panel JavaScript - MultiRoom
 const API_BASE = window.location.origin;
 let authToken = null;
 let currentUser = null;
@@ -9,14 +9,37 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function initApp() {
-    // Event Listeners
-    document.getElementById('login-form').addEventListener('submit', handleLogin);
-    document.getElementById('logout-btn').addEventListener('click', handleLogout);
-    document.getElementById('create-room-btn').addEventListener('click', showCreateRoomModal);
-    document.getElementById('create-puzzle-btn').addEventListener('click', showCreatePuzzleModal);
-    document.getElementById('modal-close').addEventListener('click', closeModal);
+    // Tab-Umschalter für Login/Register
+    document.querySelectorAll('.auth-tab').forEach(tab => {
+        tab.addEventListener('click', () => switchAuthMode(tab.dataset.mode));
+    });
 
-    // Tab-Switching
+    // Event Listeners für Formulare
+    document.getElementById('login-form').addEventListener('submit', handleLogin);
+    document.getElementById('register-form').addEventListener('submit', handleRegister);
+
+    // Dashboard-Event-Listeners (werden später aktiviert)
+    const logoutBtn = document.getElementById('logout-btn');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', handleLogout);
+    }
+
+    const createRoomBtn = document.getElementById('create-room-btn');
+    if (createRoomBtn) {
+        createRoomBtn.addEventListener('click', showCreateRoomModal);
+    }
+
+    const createPuzzleBtn = document.getElementById('create-puzzle-btn');
+    if (createPuzzleBtn) {
+        createPuzzleBtn.addEventListener('click', showCreatePuzzleModal);
+    }
+
+    const modalClose = document.getElementById('modal-close');
+    if (modalClose) {
+        modalClose.addEventListener('click', closeModal);
+    }
+
+    // Tab-Switching im Dashboard
     document.querySelectorAll('.tab').forEach(tab => {
         tab.addEventListener('click', () => switchTab(tab.dataset.tab));
     });
@@ -33,12 +56,31 @@ function initApp() {
     }
 }
 
+// Tab-Umschalter für Login/Register
+function switchAuthMode(mode) {
+    // Tabs umschalten
+    document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
+    document.querySelector(`[data-mode="${mode}"]`).classList.add('active');
+
+    // Forms umschalten
+    document.querySelectorAll('.auth-form').forEach(f => f.classList.remove('active'));
+    document.getElementById(`${mode}-form`).classList.add('active');
+
+    // Nachricht ausblenden
+    hideMessage();
+}
+
 // Login
 async function handleLogin(e) {
     e.preventDefault();
 
-    const username = document.getElementById('username').value;
-    const password = document.getElementById('password').value;
+    const username = document.getElementById('login-username').value.trim();
+    const password = document.getElementById('login-password').value.trim();
+
+    if (!username || !password) {
+        showMessage('Bitte alle Felder ausfüllen', 'error');
+        return;
+    }
 
     try {
         const response = await fetch(`${API_BASE}/api/auth/login`, {
@@ -47,14 +89,15 @@ async function handleLogin(e) {
             body: JSON.stringify({ username, password })
         });
 
-        if (!response.ok) {
-            throw new Error('Login fehlgeschlagen');
-        }
-
         const data = await response.json();
 
+        if (!response.ok) {
+            showMessage(data.detail || 'Anmeldung fehlgeschlagen', 'error');
+            return;
+        }
+
         if (data.user.role !== 'teacher') {
-            showError('Nur Lehrer können sich hier anmelden');
+            showMessage('Nur Lehrer können sich hier anmelden', 'error');
             return;
         }
 
@@ -65,19 +108,103 @@ async function handleLogin(e) {
         localStorage.setItem('authToken', authToken);
         localStorage.setItem('currentUser', JSON.stringify(currentUser));
 
-        showDashboard();
-        loadRooms();
+        showMessage('Anmeldung erfolgreich! Lade Dashboard...', 'success');
+
+        setTimeout(() => {
+            showDashboard();
+            loadRooms();
+        }, 1000);
 
     } catch (error) {
-        showError('Anmeldung fehlgeschlagen. Bitte prüfen Sie Ihre Zugangsdaten.');
+        console.error('Login error:', error);
+        showMessage('Verbindungsfehler. Bitte prüfen Sie Ihre Internetverbindung.', 'error');
     }
 }
 
+// Registrierung
+async function handleRegister(e) {
+    e.preventDefault();
+
+    const username = document.getElementById('reg-username').value.trim();
+    const fullname = document.getElementById('reg-fullname').value.trim();
+    const password = document.getElementById('reg-password').value;
+    const password2 = document.getElementById('reg-password2').value;
+
+    // Validierung
+    if (!username || !fullname || !password || !password2) {
+        showMessage('Bitte alle Felder ausfüllen', 'error');
+        return;
+    }
+
+    if (username.length < 3) {
+        showMessage('Benutzername muss mindestens 3 Zeichen haben', 'error');
+        return;
+    }
+
+    if (password.length < 8) {
+        showMessage('Passwort muss mindestens 8 Zeichen haben', 'error');
+        return;
+    }
+
+    if (password !== password2) {
+        showMessage('Passwörter stimmen nicht überein', 'error');
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_BASE}/api/auth/register`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                username: username,
+                password: password,
+                role: 'teacher',
+                full_name: fullname
+            })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            showMessage(data.detail || 'Registrierung fehlgeschlagen', 'error');
+            return;
+        }
+
+        // Erfolg
+        showMessage(
+            '✅ Registrierung erfolgreich! Ihr Account muss von einem Administrator freigeschaltet werden. ' +
+            'Sie werden benachrichtigt, sobald Sie sich anmelden können.',
+            'success'
+        );
+
+        // Formular zurücksetzen
+        document.getElementById('register-form').reset();
+
+        // Nach 3 Sekunden zum Login wechseln
+        setTimeout(() => {
+            switchAuthMode('login');
+        }, 3000);
+
+    } catch (error) {
+        console.error('Register error:', error);
+        showMessage('Verbindungsfehler. Bitte prüfen Sie Ihre Internetverbindung.', 'error');
+    }
+}
+
+// Nachrichten anzeigen
+function showMessage(text, type) {
+    const msg = document.getElementById('auth-message');
+    msg.textContent = text;
+    msg.className = `message ${type} visible`;
+}
+
+function hideMessage() {
+    const msg = document.getElementById('auth-message');
+    msg.className = 'message';
+}
+
 function showError(message) {
-    document.getElementById('login-error').textContent = message;
-    setTimeout(() => {
-        document.getElementById('login-error').textContent = '';
-    }, 3000);
+    showMessage(message, 'error');
 }
 
 function handleLogout() {
@@ -86,12 +213,17 @@ function handleLogout() {
     localStorage.removeItem('authToken');
     localStorage.removeItem('currentUser');
 
-    document.getElementById('login-container').style.display = 'block';
+    document.getElementById('auth-container').style.display = 'block';
     document.getElementById('dashboard-container').style.display = 'none';
+
+    // Formulare zurücksetzen
+    document.getElementById('login-form').reset();
+    document.getElementById('register-form').reset();
+    switchAuthMode('login');
 }
 
 function showDashboard() {
-    document.getElementById('login-container').style.display = 'none';
+    document.getElementById('auth-container').style.display = 'none';
     document.getElementById('dashboard-container').style.display = 'block';
     document.getElementById('user-name').textContent = currentUser.full_name || currentUser.username;
 }
@@ -411,3 +543,74 @@ function showModal(title, content) {
 function closeModal() {
     document.getElementById('modal-overlay').classList.remove('active');
 }
+
+// Wartende Lehrer laden
+async function loadPendingTeachers() {
+    try {
+        const response = await fetch(`${API_BASE}/api/admin/pending-teachers`, {
+            headers: { 'Authorization': `Bearer ${authToken}` }
+        });
+
+        if (!response.ok) throw new Error('Laden fehlgeschlagen');
+
+        const teachers = await response.json();
+        displayPendingTeachers(teachers);
+
+    } catch (error) {
+        console.error('Fehler:', error);
+        showMessage('Fehler beim Laden der Registrierungen', 'error');
+    }
+}
+
+function displayPendingTeachers(teachers) {
+    const container = document.getElementById('pending-list');
+
+    if (teachers.length === 0) {
+        container.innerHTML = '<p style="text-align: center; color: #999;">Keine wartenden Registrierungen</p>';
+        return;
+    }
+
+    container.innerHTML = teachers.map(teacher => `
+        <div class="item-card">
+            <div class="item-info">
+                <h4>${teacher.full_name}</h4>
+                <p><strong>Benutzername:</strong> ${teacher.username}</p>
+                <p><strong>Registriert:</strong> ${new Date(teacher.created_at).toLocaleString('de-DE')}</p>
+            </div>
+            <div class="item-actions">
+                <button class="btn-success" onclick="approveTeacher(${teacher.id}, true)">
+                    ✓ Freischalten
+                </button>
+                <button class="btn-danger" onclick="approveTeacher(${teacher.id}, false)">
+                    ✗ Ablehnen
+                </button>
+            </div>
+        </div>
+    `).join('');
+}
+
+async function approveTeacher(teacherId, approve) {
+    const action = approve ? 'freischalten' : 'ablehnen';
+
+    if (!confirm(`Lehrer wirklich ${action}?`)) return;
+
+    try {
+        const response = await fetch(
+            `${API_BASE}/api/admin/approve-teacher/${teacherId}?approve=${approve}`,
+            {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${authToken}` }
+            }
+        );
+
+        if (!response.ok) throw new Error('Fehler');
+
+        const result = await response.json();
+        alert(result.message);
+        loadPendingTeachers();
+
+    } catch (error) {
+        alert(`Fehler beim ${action}`);
+    }
+}
+

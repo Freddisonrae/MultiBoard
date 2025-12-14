@@ -3,29 +3,62 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin-Panel - School Puzzle Game</title>
+    <title>Admin-Panel - MultiRoom</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div id="app">
-        <!-- Login-Bereich -->
-        <div id="login-container" class="container">
-            <div class="login-box">
-                <h1>🎓 School Puzzle Game</h1>
-                <h2>Lehrer-Anmeldung</h2>
-                <form id="login-form">
-                    <input type="text" id="username" placeholder="Benutzername" required>
-                    <input type="password" id="password" placeholder="Passwort" required>
-                    <button type="submit">Anmelden</button>
+        <!-- Login/Register-Bereich -->
+        <div id="auth-container" class="container">
+            <div class="auth-box">
+                <h1>🎓 MultiRoom</h1>
+
+                <!-- Tab-Umschalter -->
+                <div class="auth-tabs">
+                    <button class="auth-tab active" data-mode="login">Anmelden</button>
+                    <button class="auth-tab" data-mode="register">Registrieren</button>
+                </div>
+
+                <!-- Login-Form -->
+                <form id="login-form" class="auth-form active">
+                    <h2>Lehrer-Anmeldung</h2>
+                    <div class="form-group">
+                        <input type="text" id="login-username" placeholder="Benutzername" required>
+                    </div>
+                    <div class="form-group">
+                        <input type="password" id="login-password" placeholder="Passwort" required>
+                    </div>
+                    <button type="submit" class="btn-primary">Anmelden</button>
                 </form>
-                <div id="login-error" class="error"></div>
+
+                <!-- Registrierungs-Form -->
+                <form id="register-form" class="auth-form">
+                    <h2>Als Lehrer registrieren</h2>
+                    <div class="form-group">
+                        <input type="text" id="reg-username" placeholder="Benutzername" required minlength="3">
+                        <small>Mindestens 3 Zeichen</small>
+                    </div>
+                    <div class="form-group">
+                        <input type="text" id="reg-fullname" placeholder="Vollständiger Name" required>
+                    </div>
+                    <div class="form-group">
+                        <input type="password" id="reg-password" placeholder="Passwort" required minlength="8">
+                        <small>Mindestens 8 Zeichen</small>
+                    </div>
+                    <div class="form-group">
+                        <input type="password" id="reg-password2" placeholder="Passwort wiederholen" required>
+                    </div>
+                    <button type="submit" class="btn-primary">Registrierung beantragen</button>
+                </form>
+
+                <div id="auth-message" class="message"></div>
             </div>
         </div>
 
         <!-- Dashboard -->
         <div id="dashboard-container" class="container" style="display: none;">
             <header>
-                <h1>🎓 School Puzzle Game - Admin-Panel</h1>
+                <h1>🎓 MultiRoom - Admin-Panel</h1>
                 <div class="user-info">
                     <span id="user-name"></span>
                     <button id="logout-btn" class="btn-secondary">Abmelden</button>
@@ -75,6 +108,15 @@
                 <div id="stats-content">
                     <p>Statistiken werden hier angezeigt...</p>
                 </div>
+            </div>
+
+            <!-- Nach dem Statistiken-Tab -->
+            <div id="approvals-tab" class="tab-content">
+                <div class="toolbar">
+                    <h2>Wartende Registrierungen</h2>
+                    <button onclick="loadPendingTeachers()" class="btn-secondary">🔄 Aktualisieren</button>
+                </div>
+                <div id="pending-list" class="items-list"></div>
             </div>
         </div>
     </div>

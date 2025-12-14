@@ -8,22 +8,25 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from datetime import timedelta
 import sys
-import os
-
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 sys.path.append('..')
 
-from .database import get_db, init_db
-from .auth import authenticate_user, create_access_token, get_password_hash, ACCESS_TOKEN_EXPIRE_MINUTES
-from . import models
+import sys
+import os
+
+# Parent-Verzeichnis zum Path hinzufügen für absolute Imports
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from server.database import get_db, init_db
+from server.auth import authenticate_user, create_access_token, get_password_hash, ACCESS_TOKEN_EXPIRE_MINUTES
+from server import models
 from shared.models import LoginRequest, TokenResponse, User, UserCreate
-from .routes import admin, game, websocket
+from server.routes import admin, game, websocket
 
 # FastAPI App erstellen
 app = FastAPI(
     title="School Puzzle Game API",
-    description="Multi-Room-Rätselspiel für Schulen",
+    description="MultiRoom",
     version="1.0.0"
 )
 
@@ -36,12 +39,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Statische Dateien für Admin-Panel
-app.mount(
-    "/admin",
-    StaticFiles(directory=os.path.join(BASE_DIR, "static"), html=True),
-    name="admin"
-)
+# Statische Dateien für Admin-Panel (absoluter Pfad)
+STATIC_DIR = os.path.join(os.path.dirname(__file__), "static", "admin")
+if os.path.exists(STATIC_DIR):
+    app.mount("/admin", StaticFiles(directory=STATIC_DIR, html=True), name="admin")
+else:
+    print("⚠️  Admin-Panel nicht gefunden (static/admin fehlt)")
 
 # Routen registrieren
 app.include_router(admin.router)
@@ -61,22 +64,20 @@ async def startup_event():
 async def root():
     """Root-Endpunkt"""
     return {
-        "message": "School Puzzle Game API",
+        "message": "MultiRoom - Multi-Room Puzzle Game API",
         "version": "1.0.0",
         "admin_panel": "/admin",
         "docs": "/docs"
     }
 
 
+# In main.py - Login anpassen:
 @app.post("/api/auth/login", response_model=TokenResponse)
 async def login(
         credentials: LoginRequest,
         db: Session = Depends(get_db)
 ):
-    """
-    Login-Endpunkt für Lehrer und Schüler
-    Gibt JWT-Token zurück
-    """
+    """Login-Endpunkt"""
     user = authenticate_user(db, credentials.username, credentials.password)
 
     if not user:
@@ -98,17 +99,13 @@ async def login(
         user=User.from_orm(user)
     )
 
-
 @app.post("/api/auth/register", response_model=User)
 async def register(
         user_data: UserCreate,
         db: Session = Depends(get_db)
 ):
-    """
-    Registrierungs-Endpunkt
-    Erstellt neuen Benutzer (Schüler oder Lehrer)
-    """
-    # Prüfen ob Username bereits existiert
+    """Registrierungs-Endpunkt"""
+    # Username bereits vergeben?
     existing_user = db.query(models.User).filter(
         models.User.username == user_data.username
     ).first()
@@ -122,7 +119,7 @@ async def register(
     # Passwort hashen
     hashed_password = get_password_hash(user_data.password)
 
-    # Benutzer erstellen
+    # User erstellen - OHNE is_active/is_approved
     db_user = models.User(
         username=user_data.username,
         password_hash=hashed_password,
@@ -137,10 +134,24 @@ async def register(
     return User.from_orm(db_user)
 
 
+
 @app.get("/api/health")
 async def health_check():
     """Health-Check-Endpunkt"""
     return {"status": "healthy", "service": "school-puzzle-game"}
+
+#Erstellen von Lehrern
+
+from pydantic import BaseModel, Field
+
+
+class TeacherRegistration(BaseModel):
+    username: str = Field(..., min_length=3, max_length=100)
+    password: str = Field(..., min_length=8)
+    full_name: str = Field(..., min_length=3)
+    email: str = Field(...)  # Für Kontakt
+    school_name: str  # Optionaler Kontext
+
 
 
 if __name__ == "__main__":
@@ -150,12 +161,9 @@ if __name__ == "__main__":
     # Development: mit Reload
     # Production: ohne Reload, mit mehreren Workern
     uvicorn.run(
-        "server.main:app",
+        "main:app",
         host="localhost",
         port=8000,
-        reload=True,
+        reload=True,  # Nur für Development
         log_level="info"
     )
-
-
-

@@ -47,10 +47,14 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
 def authenticate_user(db: Session, username: str, password: str):
     """Authentifiziert Benutzer"""
     user = db.query(models.User).filter(models.User.username == username).first()
+
     if not user:
-        return False
+        return None
+
     if not verify_password(password, user.password_hash):
-        return False
+        return None
+
+    # Keine Status-Prüfung mehr!
     return user
 
 

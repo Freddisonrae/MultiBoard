@@ -1,83 +1,195 @@
-/* ---------------------------------------------------
-   Allgemeines Layout
---------------------------------------------------- */
-body {
+/* Admin-Panel Styling */
+* {
     margin: 0;
-    font-family: "Segoe UI", Roboto, sans-serif;
-    background: #f4f6f9;
-    color: #222;
+    padding: 0;
+    box-sizing: border-box;
 }
 
-h1, h2, h3 {
-    margin: 0;
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    color: #333;
 }
 
 .container {
+    max-width: 1400px;
+    margin: 0 auto;
     padding: 20px;
 }
 
-/* ---------------------------------------------------
-   Login
---------------------------------------------------- */
-#login-container {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100vh;
+/* Login/Register-Bereich */
+.auth-box {
+    background: white;
+    border-radius: 15px;
+    padding: 40px;
+    max-width: 500px;
+    margin: 100px auto;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
 }
 
-.login-box {
-    background: #fff;
-    padding: 40px 50px;
-    border-radius: 14px;
-    box-shadow: 0 6px 20px rgba(0,0,0,0.1);
-    width: 360px;
+.auth-box h1 {
+    text-align: center;
+    color: #667eea;
+    margin-bottom: 20px;
+    font-size: 2.5em;
+}
+
+/* Tab-Umschalter */
+.auth-tabs {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 30px;
+    border-bottom: 2px solid #e0e0e0;
+}
+
+.auth-tab {
+    flex: 1;
+    padding: 12px;
+    background: transparent;
+    border: none;
+    border-bottom: 3px solid transparent;
+    font-size: 16px;
+    font-weight: 600;
+    color: #666;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.auth-tab:hover {
+    color: #667eea;
+}
+
+.auth-tab.active {
+    color: #667eea;
+    border-bottom-color: #667eea;
+}
+
+/* Forms */
+.auth-form {
+    display: none;
+}
+
+.auth-form.active {
+    display: block;
+}
+
+.auth-form h2 {
+    text-align: center;
+    color: #333;
+    margin-bottom: 25px;
+    font-size: 1.5em;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group input {
+    width: 100%;
+    padding: 15px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 16px;
+    transition: border-color 0.3s;
+    box-sizing: border-box;
+}
+
+.form-group input:focus {
+    outline: none;
+    border-color: #667eea;
+}
+
+.form-group small {
+    display: block;
+    margin-top: 5px;
+    color: #888;
+    font-size: 13px;
+}
+
+.approval-notice {
+    background: #fff3cd;
+    border: 1px solid #ffc107;
+    color: #856404;
+    padding: 12px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    font-size: 14px;
     text-align: center;
 }
 
-.login-box input {
+.btn-primary {
     width: 100%;
-    padding: 12px;
-    margin-top: 12px;
-    border: 1px solid #ccc;
-    border-radius: 10px;
-    font-size: 15px;
-}
-
-.login-box button {
-    width: 100%;
-    padding: 12px;
-    margin-top: 20px;
-    background: #4b82f3;
+    padding: 15px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
     border: none;
-    color: #fff;
+    border-radius: 8px;
     font-size: 16px;
-    border-radius: 10px;
+    font-weight: bold;
     cursor: pointer;
-    transition: 0.2s;
+    transition: transform 0.2s;
 }
 
-.login-box button:hover {
-    background: #3a6fd0;
+.btn-primary:hover {
+    transform: translateY(-2px);
 }
 
-.error {
-    margin-top: 10px;
-    color: #d9534f;
-    font-size: 14px;
+.btn-primary:active {
+    transform: translateY(0);
 }
 
-/* ---------------------------------------------------
-   Dashboard Header
---------------------------------------------------- */
+.message {
+    margin-top: 20px;
+    padding: 15px;
+    border-radius: 8px;
+    text-align: center;
+    display: none;
+}
+
+.message.success {
+    background: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.message.error {
+    background: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+.message.info {
+    background: #d1ecf1;
+    color: #0c5460;
+    border: 1px solid #bee5eb;
+}
+
+.message.visible {
+    display: block;
+}
+
+/* Dashboard */
+#dashboard-container {
+    background: white;
+    border-radius: 15px;
+    padding: 0;
+    margin-top: 20px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+}
+
 header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 20px 30px;
+    border-radius: 15px 15px 0 0;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background: #fff;
-    padding: 20px;
-    border-radius: 14px;
-    box-shadow: 0 3px 12px rgba(0,0,0,0.06);
+}
+
+header h1 {
+    font-size: 1.8em;
 }
 
 .user-info {
@@ -86,60 +198,45 @@ header {
     gap: 15px;
 }
 
-.btn-secondary {
-    background: #dedede;
-    border: none;
-    padding: 10px 18px;
-    border-radius: 10px;
-    cursor: pointer;
-}
-
-.btn-secondary:hover {
-    background: #c9c9c9;
-}
-
-/* ---------------------------------------------------
-   Tabs Navigation
---------------------------------------------------- */
+/* Tabs */
 .tabs {
-    margin-top: 20px;
     display: flex;
-    gap: 10px;
+    background: #f5f5f5;
+    border-bottom: 2px solid #e0e0e0;
 }
 
 .tab {
-    background: #fff;
-    padding: 12px 20px;
-    border-radius: 10px;
-    border: 1px solid #ddd;
+    flex: 1;
+    padding: 15px 20px;
+    background: transparent;
+    border: none;
     cursor: pointer;
+    font-size: 16px;
+    font-weight: 500;
+    color: #666;
+    transition: all 0.3s;
+}
+
+.tab:hover {
+    background: #e8e8e8;
 }
 
 .tab.active {
-    background: #4b82f3;
-    color: #fff;
-    border: none;
+    background: white;
+    color: #667eea;
+    border-bottom: 3px solid #667eea;
 }
 
-/* ---------------------------------------------------
-   Tabs Inhalt
---------------------------------------------------- */
 .tab-content {
     display: none;
-    margin-top: 25px;
-    background: #fff;
-    padding: 20px;
-    border-radius: 14px;
-    box-shadow: 0 3px 12px rgba(0,0,0,0.06);
+    padding: 30px;
 }
 
 .tab-content.active {
     display: block;
 }
 
-/* ---------------------------------------------------
-   Buttons & Toolbars
---------------------------------------------------- */
+/* Toolbar */
 .toolbar {
     display: flex;
     justify-content: space-between;
@@ -147,85 +244,231 @@ header {
     margin-bottom: 20px;
 }
 
+.toolbar h2 {
+    color: #333;
+}
+
+/* Buttons */
 .btn-primary {
-    background: #4b82f3;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
-    padding: 10px 16px;
-    border-radius: 10px;
-    cursor: pointer;
+    padding: 12px 24px;
     border: none;
-    transition: 0.2s;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: transform 0.2s;
 }
 
 .btn-primary:hover {
-    background: #3a6fd0;
+    transform: translateY(-2px);
 }
 
-/* ---------------------------------------------------
-   Räume / Items Grid
---------------------------------------------------- */
+.btn-secondary {
+    background: white;
+    color: #667eea;
+    padding: 10px 20px;
+    border: 2px solid #667eea;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-secondary:hover {
+    background: #667eea;
+    color: white;
+}
+
+.btn-danger {
+    background: #e74c3c;
+    color: white;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 6px;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.btn-success {
+    background: #27ae60;
+    color: white;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 6px;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+/* Items Grid (Räume) */
 .items-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 18px;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 20px;
 }
 
-.items-grid .item {
-    background: #fdfdfd;
+.room-card {
+    background: #f9f9f9;
+    border: 2px solid #e0e0e0;
+    border-radius: 10px;
     padding: 20px;
-    border-radius: 14px;
-    box-shadow: 0 3px 10px rgba(0,0,0,0.05);
+    transition: all 0.3s;
 }
 
-/* ---------------------------------------------------
-   Listen
---------------------------------------------------- */
-.items-list .item {
-    background: #fff;
-    padding: 18px;
-    border-radius: 12px;
-    box-shadow: 0 3px 10px rgba(0,0,0,0.05);
-    margin-bottom: 15px;
+.room-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
 }
 
-/* ---------------------------------------------------
-   Modal
---------------------------------------------------- */
-.modal-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.35);
-    display: none;
-    justify-content: center;
-    align-items: center;
+.room-card h3 {
+    color: #667eea;
+    margin-bottom: 10px;
 }
 
-.modal {
-    background: white;
-    padding: 0;
-    width: 420px;
-    border-radius: 14px;
-    overflow: hidden;
-    box-shadow: 0 6px 20px rgba(0,0,0,0.25);
+.room-card .status {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: bold;
+    margin-bottom: 10px;
 }
 
-.modal-header {
-    background: #4b82f3;
-    color: #fff;
-    padding: 15px;
+.room-card .status.active {
+    background: #27ae60;
+    color: white;
+}
+
+.room-card .status.inactive {
+    background: #95a5a6;
+    color: white;
+}
+
+.room-card .actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 15px;
+}
+
+/* Items List (Rätsel, Schüler) */
+.items-list {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.item-card {
+    background: #f9f9f9;
+    border: 2px solid #e0e0e0;
+    border-radius: 10px;
+    padding: 15px 20px;
     display: flex;
     justify-content: space-between;
     align-items: center;
 }
 
+.item-info h4 {
+    color: #333;
+    margin-bottom: 5px;
+}
+
+.item-info p {
+    color: #666;
+    font-size: 14px;
+}
+
+.item-actions {
+    display: flex;
+    gap: 10px;
+}
+
+/* Modal */
+.modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-overlay.active {
+    display: flex;
+}
+
+.modal {
+    background: white;
+    border-radius: 15px;
+    width: 90%;
+    max-width: 600px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+}
+
+.modal-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 20px;
+    border-radius: 15px 15px 0 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-header h3 {
+    margin: 0;
+}
+
 #modal-close {
-    background: none;
+    background: transparent;
     border: none;
     color: white;
-    font-size: 24px;
+    font-size: 30px;
     cursor: pointer;
+    line-height: 1;
 }
 
 .modal-body {
-    padding: 20px;
+    padding: 30px;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+    color: #333;
+}
+
+.form-group input,
+.form-group textarea,
+.form-group select {
+    width: 100%;
+    padding: 12px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 14px;
+}
+
+.form-group textarea {
+    resize: vertical;
+    min-height: 100px;
+}
+
+select {
+    padding: 12px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 14px;
+    background: white;
 }

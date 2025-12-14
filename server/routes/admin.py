@@ -2,7 +2,7 @@
 Admin-Endpunkte für Lehrer
 Raum- und Rätsel-Verwaltung
 """
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
 import json
@@ -14,6 +14,7 @@ from ..database import get_db
 from ..auth import get_current_teacher
 from .. import models
 from shared.models import Room, RoomCreate, Puzzle, PuzzleCreate, User
+from shared.models import User  # ← Das ist schon weiter oben importiert
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -252,3 +253,64 @@ async def get_students(
         models.User.role == "student"
     ).all()
     return students
+
+@router.get("/teachers", response_model=List[User])
+async def get_teachers(
+    current_user: models.User = Depends(get_current_teacher),
+    db: Session = Depends(get_db)
+):
+    """Alle Lehrer abrufen (nur für Lehrer)"""
+    teachers = db.query(models.User).filter(
+        models.User.role == "teacher"
+    ).all()
+    return teachers
+
+
+@router.get("/pending-teachers", response_model=List[User])
+async def get_pending_teachers(
+        current_user: models.User = Depends(get_current_teacher),
+        db: Session = Depends(get_db)
+):
+    """Wartende Lehrer-Registrierungen"""
+    # Nur freigeschaltete Lehrer dürfen das
+    if not current_user.is_approved:
+        raise HTTPException(403, "Keine Berechtigung")
+
+    pending = db.query(models.User).filter(
+        models.User.role == 'teacher',
+        models.User.is_approved == False
+    ).all()
+
+    return pending
+
+
+@router.post("/approve-teacher/{teacher_id}")
+async def approve_teacher(
+        teacher_id: int,
+        approve: bool = True,
+        current_user: models.User = Depends(get_current_teacher),
+        db: Session = Depends(get_db)
+):
+    """Lehrer freischalten oder ablehnen"""
+    if not current_user.is_approved:
+        raise HTTPException(403, "Keine Berechtigung")
+
+    teacher = db.query(models.User).filter(
+        models.User.id == teacher_id,
+        models.User.role == 'teacher'
+    ).first()
+
+    if not teacher:
+        raise HTTPException(404, "Lehrer nicht gefunden")
+
+    if approve:
+        teacher.is_active = True
+        teacher.is_approved = True
+        message = f"✅ Lehrer '{teacher.full_name}' wurde freigeschaltet"
+    else:
+        db.delete(teacher)
+        message = f"❌ Registrierung von '{teacher.full_name}' wurde abgelehnt"
+
+    db.commit()
+
+    return {"message": message, "approved": approve}
