@@ -101,19 +101,25 @@ async function handleLogin(e) {
             return;
         }
 
+        // WICHTIG: Token global speichern
         authToken = data.access_token;
         currentUser = data.user;
 
-        // Speichern
+        console.log('✅ Login erfolgreich!'); // DEBUG
+        console.log('🔑 Token gespeichert:', authToken); // DEBUG
+        console.log('👤 User:', currentUser); // DEBUG
+
+        // In localStorage speichern
         localStorage.setItem('authToken', authToken);
         localStorage.setItem('currentUser', JSON.stringify(currentUser));
 
         showMessage('Anmeldung erfolgreich! Lade Dashboard...', 'success');
 
+        // Dashboard anzeigen
         setTimeout(() => {
             showDashboard();
             loadRooms();
-        }, 1000);
+        }, 500);
 
     } catch (error) {
         console.error('Login error:', error);
@@ -191,6 +197,46 @@ async function handleRegister(e) {
     }
 }
 
+// Login
+async function handleLogin(e) {
+    e.preventDefault();
+
+    const username = document.getElementById('username').value;
+    const password = document.getElementById('password').value;
+
+    try {
+        const response = await fetch(`${API_BASE}/api/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password })
+        });
+
+        if (!response.ok) {
+            throw new Error('Login fehlgeschlagen');
+        }
+
+        const data = await response.json();
+
+        if (data.user.role !== 'teacher') {
+            showError('Nur Lehrer können sich hier anmelden');
+            return;
+        }
+
+        authToken = data.access_token;
+        currentUser = data.user;
+
+        // Speichern
+        localStorage.setItem('authToken', authToken);
+        localStorage.setItem('currentUser', JSON.stringify(currentUser));
+
+        showDashboard();
+        loadRooms();
+
+    } catch (error) {
+        showError('Anmeldung fehlgeschlagen. Bitte prüfen Sie Ihre Zugangsdaten.');
+    }
+}
+
 // Nachrichten anzeigen
 function showMessage(text, type) {
     const msg = document.getElementById('auth-message');
@@ -239,12 +285,16 @@ async function apiRequest(endpoint, options = {}) {
         headers['Authorization'] = `Bearer ${authToken}`;
     }
 
+    console.log('🌐 API Request:', endpoint, headers); // DEBUG
+
     const response = await fetch(`${API_BASE}${endpoint}`, {
         ...options,
         headers
     });
 
     if (!response.ok) {
+        const error = await response.text();
+        console.error('❌ API Error:', response.status, error);
         throw new Error(`API Error: ${response.status}`);
     }
 
@@ -490,6 +540,7 @@ function showCreatePuzzleModal() {
             loadPuzzles();
         } catch (error) {
             alert('Fehler beim Erstellen des Rätsels');
+            console.log("Gesendete Daten:", puzzleData)
         }
     });
 }
@@ -543,74 +594,3 @@ function showModal(title, content) {
 function closeModal() {
     document.getElementById('modal-overlay').classList.remove('active');
 }
-
-// Wartende Lehrer laden
-async function loadPendingTeachers() {
-    try {
-        const response = await fetch(`${API_BASE}/api/admin/pending-teachers`, {
-            headers: { 'Authorization': `Bearer ${authToken}` }
-        });
-
-        if (!response.ok) throw new Error('Laden fehlgeschlagen');
-
-        const teachers = await response.json();
-        displayPendingTeachers(teachers);
-
-    } catch (error) {
-        console.error('Fehler:', error);
-        showMessage('Fehler beim Laden der Registrierungen', 'error');
-    }
-}
-
-function displayPendingTeachers(teachers) {
-    const container = document.getElementById('pending-list');
-
-    if (teachers.length === 0) {
-        container.innerHTML = '<p style="text-align: center; color: #999;">Keine wartenden Registrierungen</p>';
-        return;
-    }
-
-    container.innerHTML = teachers.map(teacher => `
-        <div class="item-card">
-            <div class="item-info">
-                <h4>${teacher.full_name}</h4>
-                <p><strong>Benutzername:</strong> ${teacher.username}</p>
-                <p><strong>Registriert:</strong> ${new Date(teacher.created_at).toLocaleString('de-DE')}</p>
-            </div>
-            <div class="item-actions">
-                <button class="btn-success" onclick="approveTeacher(${teacher.id}, true)">
-                    ✓ Freischalten
-                </button>
-                <button class="btn-danger" onclick="approveTeacher(${teacher.id}, false)">
-                    ✗ Ablehnen
-                </button>
-            </div>
-        </div>
-    `).join('');
-}
-
-async function approveTeacher(teacherId, approve) {
-    const action = approve ? 'freischalten' : 'ablehnen';
-
-    if (!confirm(`Lehrer wirklich ${action}?`)) return;
-
-    try {
-        const response = await fetch(
-            `${API_BASE}/api/admin/approve-teacher/${teacherId}?approve=${approve}`,
-            {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${authToken}` }
-            }
-        );
-
-        if (!response.ok) throw new Error('Fehler');
-
-        const result = await response.json();
-        alert(result.message);
-        loadPendingTeachers();
-
-    } catch (error) {
-        alert(`Fehler beim ${action}`);
-    }
-}
-

@@ -18,6 +18,27 @@ from shared.models import User  # ← Das ist schon weiter oben importiert
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
+from pydantic import BaseModel
+from typing import Optional, Dict, Any
+from datetime import datetime
+
+
+# Eigenes Response-Model für Puzzle, um den Fehler beim Erstellen eines Fehler zu verhindern
+class PuzzleResponse(BaseModel):
+    id: int
+    room_id: int
+    title: str
+    h5p_content_id: Optional[str] = None
+    h5p_json: Optional[str] = None  # ← Als String!
+    puzzle_type: str
+    order_index: int
+    points: int
+    time_limit_seconds: int
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
 
 @router.get("/rooms", response_model=List[Room])
 async def get_rooms(
@@ -112,11 +133,11 @@ async def activate_room(
     return {"is_active": db_room.is_active}
 
 
-@router.get("/rooms/{room_id}/puzzles", response_model=List[Puzzle])
+@router.get("/rooms/{room_id}/puzzles", response_model=List[PuzzleResponse])  # Verweist auf Modell oben
 async def get_puzzles(
-        room_id: int,
-        current_user: models.User = Depends(get_current_teacher),
-        db: Session = Depends(get_db)
+    room_id: int,
+    current_user: models.User = Depends(get_current_teacher),
+    db: Session = Depends(get_db)
 ):
     """Rätsel eines Raums abrufen"""
     # Prüfen ob Raum dem Lehrer gehört
@@ -135,11 +156,11 @@ async def get_puzzles(
     return puzzles
 
 
-@router.post("/puzzles", response_model=Puzzle)
+@router.post("/puzzles", response_model=PuzzleResponse)  #Verweist auf Modell oben
 async def create_puzzle(
-        puzzle: PuzzleCreate,
-        current_user: models.User = Depends(get_current_teacher),
-        db: Session = Depends(get_db)
+    puzzle: PuzzleCreate,
+    current_user: models.User = Depends(get_current_teacher),
+    db: Session = Depends(get_db)
 ):
     """Neues Rätsel erstellen"""
     # Prüfen ob Raum dem Lehrer gehört
@@ -151,10 +172,25 @@ async def create_puzzle(
     if not db_room:
         raise HTTPException(status_code=404, detail="Raum nicht gefunden")
 
-    db_puzzle = models.Puzzle(**puzzle.dict())
+    # WICHTIG: h5p_json muss als STRING gespeichert werden
+    import json
+    h5p_json_str = json.dumps(puzzle.h5p_json) if puzzle.h5p_json else None
+
+    db_puzzle = models.Puzzle(
+        room_id=puzzle.room_id,
+        title=puzzle.title,
+        h5p_content_id=puzzle.h5p_content_id,
+        h5p_json=h5p_json_str,  # ← Als String!
+        puzzle_type=puzzle.puzzle_type,
+        order_index=puzzle.order_index,
+        points=puzzle.points,
+        time_limit_seconds=puzzle.time_limit_seconds
+    )
+
     db.add(db_puzzle)
     db.commit()
     db.refresh(db_puzzle)
+
     return db_puzzle
 
 
