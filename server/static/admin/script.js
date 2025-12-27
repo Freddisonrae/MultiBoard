@@ -197,46 +197,6 @@ async function handleRegister(e) {
     }
 }
 
-// Login
-async function handleLogin(e) {
-    e.preventDefault();
-
-    const username = document.getElementById('username').value;
-    const password = document.getElementById('password').value;
-
-    try {
-        const response = await fetch(`${API_BASE}/api/auth/login`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, password })
-        });
-
-        if (!response.ok) {
-            throw new Error('Login fehlgeschlagen');
-        }
-
-        const data = await response.json();
-
-        if (data.user.role !== 'teacher') {
-            showError('Nur Lehrer können sich hier anmelden');
-            return;
-        }
-
-        authToken = data.access_token;
-        currentUser = data.user;
-
-        // Speichern
-        localStorage.setItem('authToken', authToken);
-        localStorage.setItem('currentUser', JSON.stringify(currentUser));
-
-        showDashboard();
-        loadRooms();
-
-    } catch (error) {
-        showError('Anmeldung fehlgeschlagen. Bitte prüfen Sie Ihre Zugangsdaten.');
-    }
-}
-
 // Nachrichten anzeigen
 function showMessage(text, type) {
     const msg = document.getElementById('auth-message');
