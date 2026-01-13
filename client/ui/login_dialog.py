@@ -5,6 +5,7 @@ from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel,
     QLineEdit, QPushButton, QMessageBox
 )
+from .register_dialog import RegisterDialog
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QFont
 
@@ -91,6 +92,19 @@ class LoginDialog(QDialog):
         """)
         self.login_btn.clicked.connect(self.handle_login)
         layout.addWidget(self.login_btn)
+        self.register_btn = QPushButton("Registrieren")
+        self.register_btn.setStyleSheet("""
+            QPushButton {
+                background-color: transparent;
+                color: white;
+                font-size: 14px;
+                text-decoration: underline;
+                border: none;
+            }
+            QPushButton:hover { color: #e0e0ff; }
+        """)
+        self.register_btn.clicked.connect(self.open_register)
+        layout.addWidget(self.register_btn, alignment=Qt.AlignCenter)
 
         # Enter-Taste aktivieren
         self.password_input.returnPressed.connect(self.handle_login)
@@ -118,6 +132,11 @@ class LoginDialog(QDialog):
 
     def handle_login(self):
         """Login durchführen"""
+
+        def open_register(self):
+            dialog = RegisterDialog(self.api_client, self)
+            dialog.exec()
+
         username = self.username_input.text().strip()
         password = self.password_input.text().strip()
 
@@ -147,3 +166,6 @@ class LoginDialog(QDialog):
                 "Login fehlgeschlagen",
                 "Benutzername oder Passwort falsch.\nBitte versuchen Sie es erneut."
             )
+    def open_register(self):
+        dialog = RegisterDialog(self.api_client, self)
+        dialog.exec()
