@@ -18,6 +18,14 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.api_client = api_client
         self.current_session = None
+        self.auto_refresh_enabled = True
+
+        self.refresh_button = QPushButton("🔄 Aktualisieren")
+        self.refresh_button.clicked.connect(self.refresh_rooms)
+
+        self.refresh_timer = QTimer(self)
+        self.refresh_timer.timeout.connect(self.auto_refresh)
+        self.refresh_timer.start(10000)
 
         self.setWindowTitle("School Puzzle Game")
         self.setMinimumSize(1024, 768)
@@ -315,3 +323,31 @@ class MainWindow(QMainWindow):
             self.load_rooms()  # refresh
         except Exception as e:
             QMessageBox.critical(self, "Fehler", f"JSON konnte nicht geladen werden:\n{e}")
+
+    def auto_refresh(self):
+        """Automatisches Aktualisieren (nur wenn aktiviert)"""
+        if self.auto_refresh_enabled:
+            self.refresh_rooms()
+
+    def refresh_rooms(self):
+        """Lädt Raumliste neu und zeigt sie an"""
+        try:
+            # Loading-Indikator anzeigen (optional)
+            self.refresh_button.setEnabled(False)
+            self.refresh_button.setText("⏳ Lädt...")
+
+            # Räume laden
+            rooms = self.api_client.get_available_rooms()
+
+            # UI aktualisieren
+            self.update_room_list(rooms)
+
+            # Button wieder aktivieren
+            self.refresh_button.setEnabled(True)
+            self.refresh_button.setText("🔄 Aktualisieren")
+
+        except Exception as e:
+            print(f"Fehler beim Aktualisieren: {e}")
+            self.refresh_button.setEnabled(True)
+            self.refresh_button.setText("🔄 Fehler - Erneut versuchen")
+

@@ -5,6 +5,7 @@ from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime, Foreign
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from .database import Base
+import json
 
 
 class User(Base):
@@ -34,11 +35,12 @@ class Room(Base):
     time_limit_minutes = Column(Integer, default=60)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    is_active = Column(Boolean, default=False)
 
     # Relationships
     teacher = relationship("User", back_populates="rooms")
     puzzles = relationship("Puzzle", back_populates="room", cascade="all, delete-orphan")
-    game_sessions = relationship("GameSession", back_populates="room")
+    game_sessions = relationship("GameSession", back_populates="room", cascade="all, delete-orphan")
     room_assignments = relationship("RoomAssignment", back_populates="room")
 
 
@@ -59,6 +61,10 @@ class Puzzle(Base):
     # Relationships
     room = relationship("Room", back_populates="puzzles")
     results = relationship("PuzzleResult", back_populates="puzzle")
+
+    @property
+    def h5_json_dict(self):
+        return json.loads(self.h5p_json) if self.h5p_json else None
 
 
 class RoomAssignment(Base):
@@ -106,3 +112,7 @@ class PuzzleResult(Base):
     # Relationships
     session = relationship("GameSession", back_populates="results")
     puzzle = relationship("Puzzle", back_populates="results")
+
+    @property
+    def answer_json_dict(self):
+        return json.loads(self.answer_json) if self.answer_json else None
