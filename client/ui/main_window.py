@@ -6,7 +6,7 @@ from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QPushButton, QScrollArea, QMessageBox
 )
-from PySide6.QtCore import Qt, QtTimer
+from PySide6.QtCore import Qt, QTimer  # ← QTimer statt QtTimer
 from PySide6.QtGui import QFont
 from .game_widget import GameWidget
 
@@ -20,21 +20,21 @@ class MainWindow(QMainWindow):
         self.current_session = None
         self.auto_refresh_enabled = True
 
-        self.refresh_button = QPushButton("🔄 Aktualisieren")
-        self.refresh_button.clicked.connect(self.refresh_rooms)
-
-        self.refresh_timer = QTimer(self)
-        self.refresh_timer.timeout.connect(self.auto_refresh)
-        self.refresh_timer.start(10000)
-
-        self.refresh_rooms()
-
         self.setWindowTitle("School Puzzle Game")
         self.setMinimumSize(1024, 768)
 
-
         self.init_ui()
         self.load_rooms()
+
+        # Auto-Refresh Timer einrichten (am Ende von __init__)
+        self.refresh_timer = QTimer(self)
+        self.refresh_timer.timeout.connect(self.auto_refresh)
+        self.refresh_timer.start(5000)  # alle 5 Sekunden
+
+    def auto_refresh(self):
+        """Automatisches Aktualisieren (nur wenn aktiviert)"""
+        if self.auto_refresh_enabled:
+            self.load_rooms()
 
     def init_ui(self):
         """UI initialisieren"""
@@ -74,6 +74,24 @@ class MainWindow(QMainWindow):
             font-size: 16px;
         """)
         header_layout.addWidget(user_label)
+
+        # Refresh-Button hinzufügen
+        self.refresh_button = QPushButton("🔄")
+        self.refresh_button.setStyleSheet("""
+            QPushButton {
+                background-color: rgba(255, 255, 255, 0.2);
+                color: white;
+                font-size: 18px;
+                border-radius: 8px;
+                padding: 8px 12px;
+            }
+            QPushButton:hover {
+                background-color: rgba(255, 255, 255, 0.3);
+            }
+        """)
+        self.refresh_button.clicked.connect(self.manual_refresh)
+        self.refresh_button.setToolTip("Raumliste aktualisieren")
+        header_layout.addWidget(self.refresh_button)
 
         # Admin-Button nur für Admin
         if self.api_client.user.get("username") == "admin":
@@ -117,6 +135,19 @@ class MainWindow(QMainWindow):
         main_layout.addWidget(self.content_container)
 
         central_widget.setLayout(main_layout)
+
+    def manual_refresh(self):
+        """Manuelles Aktualisieren mit visuellem Feedback"""
+        self.refresh_button.setEnabled(False)
+        self.refresh_button.setText("⏳")
+
+        self.load_rooms()
+
+        # Button nach kurzer Zeit wieder aktivieren
+        QTimer.singleShot(1000, lambda: (
+            self.refresh_button.setEnabled(True),
+            self.refresh_button.setText("🔄")
+        ))
 
     def load_rooms(self):
         """Lädt Räume"""
@@ -244,7 +275,7 @@ class MainWindow(QMainWindow):
         start_btn.clicked.connect(lambda: self.start_room(room))
         layout.addWidget(start_btn)
 
-        # ✨ **NEU: Rätsel bearbeiten Button**
+        # Rätsel bearbeiten Button für Admin
         if self.api_client.user.get("username") == "admin":
             edit_btn = QPushButton("Rätsel bearbeiten")
             edit_btn.setStyleSheet("""
@@ -303,7 +334,7 @@ class MainWindow(QMainWindow):
         dialog = AdminRoomDialog(self.api_client, self)
 
         if dialog.exec():
-            QMessageBox.information(self, "Info", "Admin-Daten aktualisiert.")
+            # Sofort aktualisieren nach Raumerstellung
             self.load_rooms()
 
     def open_puzzle_editor(self, room):
@@ -326,33 +357,3 @@ class MainWindow(QMainWindow):
             self.load_rooms()  # refresh
         except Exception as e:
             QMessageBox.critical(self, "Fehler", f"JSON konnte nicht geladen werden:\n{e}")
-
-    def refresh_rooms(self):
-        """Lädt Raumliste neu"""
-        try:
-            rooms = self.api_client.get_available_rooms()
-            self.update_room_list(rooms)
-        except Exception as e:
-            print(f"Fehler beim Aktualisieren: {e}")
-
-    def update_room_list(self, rooms):
-        """Aktualisiert die Raumliste in der UI"""
-        # Beispiel mit QListWidget:
-        current_selection = self.room_list.currentRow()
-
-        self.room_list.clear()
-
-        for room in rooms:
-            mode_icon = "📄" if room.get("mode") == "offline" else "🌐"
-            self.room_list.addItem(f"{mode_icon} {room['name']}")
-
-        # Auswahl wiederherstellen
-        if current_selection >= 0 and current_selection < self.room_list.count():
-            self.room_list.setCurrentRow(current_selection)
-
-    def on_room_created(self, room: dict):
-        """Wird aufgerufen wenn ein neuer Raum erstellt wurde"""
-        print(f"Neuer Raum erstellt: {room['name']}")
-        # Sofort aktualisieren (ohne auf Timer zu warten)
-        self.refresh_rooms()
-
