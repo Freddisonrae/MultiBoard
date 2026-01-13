@@ -6,7 +6,7 @@ from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QPushButton, QScrollArea, QMessageBox
 )
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QtTimer
 from PySide6.QtGui import QFont
 from .game_widget import GameWidget
 
@@ -27,8 +27,11 @@ class MainWindow(QMainWindow):
         self.refresh_timer.timeout.connect(self.auto_refresh)
         self.refresh_timer.start(10000)
 
+        self.refresh_rooms()
+
         self.setWindowTitle("School Puzzle Game")
         self.setMinimumSize(1024, 768)
+
 
         self.init_ui()
         self.load_rooms()
@@ -324,30 +327,32 @@ class MainWindow(QMainWindow):
         except Exception as e:
             QMessageBox.critical(self, "Fehler", f"JSON konnte nicht geladen werden:\n{e}")
 
-    def auto_refresh(self):
-        """Automatisches Aktualisieren (nur wenn aktiviert)"""
-        if self.auto_refresh_enabled:
-            self.refresh_rooms()
-
     def refresh_rooms(self):
-        """Lädt Raumliste neu und zeigt sie an"""
+        """Lädt Raumliste neu"""
         try:
-            # Loading-Indikator anzeigen (optional)
-            self.refresh_button.setEnabled(False)
-            self.refresh_button.setText("⏳ Lädt...")
-
-            # Räume laden
             rooms = self.api_client.get_available_rooms()
-
-            # UI aktualisieren
             self.update_room_list(rooms)
-
-            # Button wieder aktivieren
-            self.refresh_button.setEnabled(True)
-            self.refresh_button.setText("🔄 Aktualisieren")
-
         except Exception as e:
             print(f"Fehler beim Aktualisieren: {e}")
-            self.refresh_button.setEnabled(True)
-            self.refresh_button.setText("🔄 Fehler - Erneut versuchen")
+
+    def update_room_list(self, rooms):
+        """Aktualisiert die Raumliste in der UI"""
+        # Beispiel mit QListWidget:
+        current_selection = self.room_list.currentRow()
+
+        self.room_list.clear()
+
+        for room in rooms:
+            mode_icon = "📄" if room.get("mode") == "offline" else "🌐"
+            self.room_list.addItem(f"{mode_icon} {room['name']}")
+
+        # Auswahl wiederherstellen
+        if current_selection >= 0 and current_selection < self.room_list.count():
+            self.room_list.setCurrentRow(current_selection)
+
+    def on_room_created(self, room: dict):
+        """Wird aufgerufen wenn ein neuer Raum erstellt wurde"""
+        print(f"Neuer Raum erstellt: {room['name']}")
+        # Sofort aktualisieren (ohne auf Timer zu warten)
+        self.refresh_rooms()
 
