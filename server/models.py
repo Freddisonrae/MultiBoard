@@ -34,7 +34,7 @@ class Room(Base):
     time_limit_minutes = Column(Integer, default=60)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-
+    is_active = Column(Boolean, default=False, nullable=False)
     # Relationships
     teacher = relationship("User", back_populates="rooms")
     puzzles = relationship("Puzzle", back_populates="room", cascade="all, delete-orphan")

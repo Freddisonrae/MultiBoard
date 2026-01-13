@@ -1,7 +1,4 @@
-"""
-Admin-Endpunkte für Lehrer
-Raum- und Rätsel-Verwaltung
-"""
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
@@ -14,7 +11,6 @@ from ..database import get_db
 from ..auth import get_current_teacher
 from .. import models
 from shared.models import Room, RoomCreate, Puzzle, PuzzleCreate, User
-from shared.models import User  # ← Das ist schon weiter oben importiert
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 

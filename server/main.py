@@ -162,7 +162,7 @@ if __name__ == "__main__":
     # Production: ohne Reload, mit mehreren Workern
     uvicorn.run(
         "main:app",
-        host="localhost",
+        host="10.13.20.26",
         port=8000,
         reload=True,  # Nur für Development
         log_level="info"
