@@ -16,6 +16,9 @@ from .. import models
 from shared.models import Room, RoomCreate, Puzzle, PuzzleCreate, User
 from shared.models import User  # ← Das ist schon weiter oben importiert
 
+# 🔥 NEU: WebSocket Manager importieren
+from .websocket import manager
+
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
 from pydantic import BaseModel
@@ -66,6 +69,16 @@ async def create_room(
     db.add(db_room)
     db.commit()
     db.refresh(db_room)
+
+    # 🔥 NEU: WebSocket Broadcast an alle Clients
+    await manager.broadcast({
+        "type": "rooms_updated",
+        "action": "room_created",
+        "room_id": db_room.id,
+        "room_name": db_room.name
+    })
+    print(f"📢 Broadcast gesendet: Raum '{db_room.name}' erstellt")
+
     return db_room
 
 
@@ -90,6 +103,14 @@ async def update_room(
 
     db.commit()
     db.refresh(db_room)
+
+    # 🔥 NEU: Broadcast bei Update
+    await manager.broadcast({
+        "type": "rooms_updated",
+        "action": "room_updated",
+        "room_id": db_room.id
+    })
+
     return db_room
 
 
@@ -110,6 +131,14 @@ async def delete_room(
 
     db.delete(db_room)
     db.commit()
+
+    # 🔥 NEU: Broadcast bei Löschen
+    await manager.broadcast({
+        "type": "rooms_updated",
+        "action": "room_deleted",
+        "room_id": room_id
+    })
+
     return {"message": "Raum gelöscht"}
 
 
@@ -130,10 +159,18 @@ async def activate_room(
 
     db_room.is_active = not db_room.is_active
     db.commit()
+
+    # 🔥 NEU: Broadcast bei Aktivierung
+    await manager.broadcast({
+        "type": "rooms_updated",
+        "action": "room_activated" if db_room.is_active else "room_deactivated",
+        "room_id": room_id
+    })
+
     return {"is_active": db_room.is_active}
 
 
-@router.get("/rooms/{room_id}/puzzles", response_model=List[PuzzleResponse])  # Verweist auf Modell oben
+@router.get("/rooms/{room_id}/puzzles", response_model=List[PuzzleResponse])
 async def get_puzzles(
     room_id: int,
     current_user: models.User = Depends(get_current_teacher),
@@ -156,7 +193,7 @@ async def get_puzzles(
     return puzzles
 
 
-@router.post("/puzzles", response_model=PuzzleResponse)  #Verweist auf Modell oben
+@router.post("/puzzles", response_model=PuzzleResponse)
 async def create_puzzle(
     puzzle: PuzzleCreate,
     current_user: models.User = Depends(get_current_teacher),
@@ -190,6 +227,14 @@ async def create_puzzle(
     db.add(db_puzzle)
     db.commit()
     db.refresh(db_puzzle)
+
+    # 🔥 NEU: Broadcast bei Puzzle-Erstellung
+    # (optional - wenn du willst dass Puzzles auch Updates triggern)
+    await manager.broadcast({
+        "type": "rooms_updated",
+        "action": "puzzle_added",
+        "room_id": puzzle.room_id
+    })
 
     return db_puzzle
 
@@ -276,6 +321,14 @@ async def assign_student_to_room(
     assignment = models.RoomAssignment(room_id=room_id, student_id=student_id)
     db.add(assignment)
     db.commit()
+
+    # 🔥 NEU: Broadcast bei Student-Zuweisung
+    await manager.broadcast({
+        "type": "rooms_updated",
+        "action": "student_assigned",
+        "room_id": room_id
+    })
+
     return {"message": "Schüler zugewiesen"}
 
 

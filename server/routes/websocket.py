@@ -1,125 +1,72 @@
-"""
-WebSocket-Endpunkte für Echtzeit-Updates
-Live-Fortschritt und Raum-Synchronisation
-"""
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends
-from sqlalchemy.orm import Session
-from typing import Dict, List
+# server/routes/websocket.py
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from typing import List, Dict
 import json
-import asyncio
-
-from ..database import get_db
-from .. import models
 
 router = APIRouter()
 
 
 class ConnectionManager:
-    """Verwaltet WebSocket-Verbindungen pro Raum"""
+    """Verwaltet alle WebSocket-Verbindungen"""
 
     def __init__(self):
-        # room_id -> Liste von WebSocket-Verbindungen
-        self.active_connections: Dict[int, List[WebSocket]] = {}
+        # Liste aller aktiven WebSocket-Verbindungen
+        self.active_connections: List[WebSocket] = []
 
-    async def connect(self, websocket: WebSocket, room_id: int):
+    async def connect(self, websocket: WebSocket):
         """Neue Verbindung hinzufügen"""
-        await websocket.accept()
-        if room_id not in self.active_connections:
-            self.active_connections[room_id] = []
-        self.active_connections[room_id].append(websocket)
+        await websocket.accept()  # Verbindung akzeptieren
+        self.active_connections.append(websocket)
+        print(f"✅ Neuer Client verbunden. Gesamt: {len(self.active_connections)}")
 
-    def disconnect(self, websocket: WebSocket, room_id: int):
+    async def disconnect(self, websocket: WebSocket):
         """Verbindung entfernen"""
-        if room_id in self.active_connections:
-            self.active_connections[room_id].remove(websocket)
-            if not self.active_connections[room_id]:
-                del self.active_connections[room_id]
+        if websocket in self.active_connections:
+            self.active_connections.remove(websocket)
+        print(f"❌ Client getrennt. Noch: {len(self.active_connections)}")
 
-    async def broadcast_to_room(self, room_id: int, message: dict):
-        """Nachricht an alle Verbindungen eines Raums senden"""
-        if room_id in self.active_connections:
-            disconnected = []
-            for connection in self.active_connections[room_id]:
-                try:
-                    await connection.send_json(message)
-                except:
-                    disconnected.append(connection)
+    async def broadcast(self, message: Dict):
+        """Nachricht an ALLE verbundenen Clients senden"""
+        dead_connections = []
 
-            # Tote Verbindungen entfernen
-            for conn in disconnected:
-                self.disconnect(conn, room_id)
+        for connection in self.active_connections:
+            try:
+                await connection.send_json(message)
+            except Exception as e:
+                print(f"Fehler beim Senden: {e}")
+                dead_connections.append(connection)
+
+        # Tote Verbindungen aufräumen
+        for dead in dead_connections:
+            if dead in self.active_connections:
+                self.active_connections.remove(dead)
 
 
+# Globale Instanz (wird in main.py importiert!)
 manager = ConnectionManager()
 
 
-@router.websocket("/ws/room/{room_id}")
-async def websocket_room_endpoint(
-        websocket: WebSocket,
-        room_id: int,
-        db: Session = Depends(get_db)
-):
-    """
-    WebSocket für Raum-Updates
-    Sendet Fortschritt-Updates an alle verbundenen Clients
-    """
-    await manager.connect(websocket, room_id)
+@router.websocket("/ws/rooms")
+async def websocket_rooms_endpoint(websocket: WebSocket):
+    """WebSocket-Endpunkt für Raum-Updates"""
+    await manager.connect(websocket)
 
     try:
+        # Endlos-Schleife: warte auf Nachrichten vom Client
         while True:
-            # Auf Nachrichten vom Client warten
+            # Client kann "ping" senden als Keep-Alive
             data = await websocket.receive_text()
-            message = json.loads(data)
 
-            # Je nach Nachrichtentyp handeln
-            if message.get("type") == "progress_update":
-                # Fortschritt an alle Clients broadcasten
-                await manager.broadcast_to_room(room_id, {
-                    "type": "progress_update",
-                    "student_id": message.get("student_id"),
-                    "completed_puzzles": message.get("completed_puzzles"),
-                    "score": message.get("score")
+            # Optional: auf bestimmte Nachrichten reagieren
+            if data == "get_rooms":
+                await websocket.send_json({
+                    "type": "rooms_update_request",
+                    "message": "Bitte Räume neu laden"
                 })
 
-            elif message.get("type") == "room_status":
-                # Raum-Status ändern
-                room = db.query(models.Room).filter(
-                    models.Room.id == room_id
-                ).first()
-
-                if room:
-                    await manager.broadcast_to_room(room_id, {
-                        "type": "room_status",
-                        "is_active": room.is_active,
-                        "name": room.name
-                    })
-
     except WebSocketDisconnect:
-        manager.disconnect(websocket, room_id)
-        # Optional: Anderen mitteilen, dass jemand disconnected ist
-        await manager.broadcast_to_room(room_id, {
-            "type": "user_disconnected",
-            "message": "Ein Teilnehmer hat den Raum verlassen"
-        })
-
-
-@router.websocket("/ws/admin")
-async def websocket_admin_endpoint(websocket: WebSocket):
-    """
-    WebSocket für Admin-Dashboard
-    Sendet globale Updates an Lehrer
-    """
-    await websocket.accept()
-
-    try:
-        while True:
-            data = await websocket.receive_text()
-            # Admin-spezifische Logik hier
-            await websocket.send_json({
-                "type": "admin_update",
-                "message": "Admin-Panel verbunden"
-            })
-            await asyncio.sleep(5)  # Heartbeat
-
-    except WebSocketDisconnect:
-        pass
+        # Client hat Verbindung geschlossen
+        await manager.disconnect(websocket)
+    except Exception as e:
+        print(f"WebSocket Fehler: {e}")
+        await manager.disconnect(websocket)
