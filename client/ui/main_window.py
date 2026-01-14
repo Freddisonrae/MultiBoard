@@ -6,9 +6,17 @@ from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QPushButton, QScrollArea, QMessageBox
 )
-from PySide6.QtCore import Qt, QTimer  # ← QTimer statt QtTimer
+from PySide6.QtCore import Qt, QTimer, Signal, QObject
 from PySide6.QtGui import QFont
 from .game_widget import GameWidget
+
+
+class WebSocketSignalBridge(QObject):
+    """
+    Bridge zwischen WebSocket-Thread und Qt Main-Thread
+    WICHTIG: Qt GUI kann nur vom Main-Thread aktualisiert werden!
+    """
+    rooms_updated = Signal(list)  # Signal für Raum-Updates
 
 
 class MainWindow(QMainWindow):
@@ -23,17 +31,61 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("School Puzzle Game")
         self.setMinimumSize(1024, 768)
 
+        # 🔥 NEU: WebSocket Signal-Bridge erstellen
+        self.ws_bridge = WebSocketSignalBridge()
+        self.ws_bridge.rooms_updated.connect(self.on_rooms_updated_from_websocket)
+
         self.init_ui()
         self.load_rooms()
 
-        # Auto-Refresh Timer einrichten (am Ende von __init__)
+        # 🔥 NEU: WebSocket verbinden (NACH init_ui!)
+        self.connect_websocket()
+
+        # Auto-Refresh Timer (als Fallback falls WebSocket ausfällt)
         self.refresh_timer = QTimer(self)
         self.refresh_timer.timeout.connect(self.auto_refresh)
-        self.refresh_timer.start(5000)  # alle 5 Sekunden
+        self.refresh_timer.start(30000)  # alle 30 Sekunden (langsamer, da WebSocket aktiv)
+
+    def connect_websocket(self):
+        """WebSocket-Verbindung für Live-Updates starten"""
+        try:
+            # Callback-Funktion für WebSocket
+            def on_ws_rooms_updated(rooms):
+                """
+                Wird vom WebSocket-Thread aufgerufen
+                WICHTIG: Kann nicht direkt GUI updaten!
+                """
+                # Signal emittieren -> landet im Main-Thread
+                self.ws_bridge.rooms_updated.emit(rooms)
+
+            # WebSocket starten
+            self.api_client.connect_websocket(on_ws_rooms_updated)
+            print("✅ WebSocket-Verbindung wird aufgebaut...")
+
+        except Exception as e:
+            print(f"⚠️ WebSocket-Fehler: {e}")
+            print("Fallback: Verwende Timer-basiertes Polling")
+
+    def on_rooms_updated_from_websocket(self, rooms):
+        """
+        Wird aufgerufen wenn WebSocket meldet: "Räume haben sich geändert"
+        Läuft im Main-Thread -> kann GUI aktualisieren!
+        """
+        print(f"🔄 WebSocket-Update empfangen: {len(rooms)} Räume")
+
+        # Visuelles Feedback: Refresh-Button kurz animieren
+        if hasattr(self, 'refresh_button'):
+            original_text = self.refresh_button.text()
+            self.refresh_button.setText("✨")
+            QTimer.singleShot(500, lambda: self.refresh_button.setText(original_text))
+
+        # GUI aktualisieren
+        self.load_rooms()
 
     def auto_refresh(self):
-        """Automatisches Aktualisieren (nur wenn aktiviert)"""
+        """Automatisches Aktualisieren (Fallback wenn WebSocket nicht funktioniert)"""
         if self.auto_refresh_enabled:
+            print("⏰ Timer-basierter Refresh (Fallback)")
             self.load_rooms()
 
     def init_ui(self):
@@ -74,6 +126,20 @@ class MainWindow(QMainWindow):
             font-size: 16px;
         """)
         header_layout.addWidget(user_label)
+
+        # 🔥 WebSocket-Status-Indikator
+        self.ws_status_label = QLabel("●")
+        self.ws_status_label.setStyleSheet("""
+            color: #95a5a6;
+            font-size: 24px;
+        """)
+        self.ws_status_label.setToolTip("WebSocket: Verbindung wird aufgebaut...")
+        header_layout.addWidget(self.ws_status_label)
+
+        # Timer um Status zu checken
+        self.ws_status_timer = QTimer(self)
+        self.ws_status_timer.timeout.connect(self.update_ws_status)
+        self.ws_status_timer.start(2000)  # alle 2 Sekunden Status prüfen
 
         # Refresh-Button hinzufügen
         self.refresh_button = QPushButton("🔄")
@@ -135,6 +201,15 @@ class MainWindow(QMainWindow):
         main_layout.addWidget(self.content_container)
 
         central_widget.setLayout(main_layout)
+
+    def update_ws_status(self):
+        """WebSocket-Status visuell anzeigen"""
+        if hasattr(self.api_client, '_ws_connected') and self.api_client._ws_connected:
+            self.ws_status_label.setStyleSheet("color: #2ecc71; font-size: 24px;")
+            self.ws_status_label.setToolTip("WebSocket: Verbunden ✓ (Live-Updates aktiv)")
+        else:
+            self.ws_status_label.setStyleSheet("color: #e74c3c; font-size: 24px;")
+            self.ws_status_label.setToolTip("WebSocket: Nicht verbunden (Timer-Fallback aktiv)")
 
     def manual_refresh(self):
         """Manuelles Aktualisieren mit visuellem Feedback"""
@@ -327,7 +402,15 @@ class MainWindow(QMainWindow):
                                      QMessageBox.Yes | QMessageBox.No)
 
         if reply == QMessageBox.Yes:
+            # 🔥 WebSocket sauber schließen
+            self.api_client.disconnect_websocket()
             self.close()
+
+    def closeEvent(self, event):
+        """Beim Schließen des Fensters aufräumen"""
+        # 🔥 WebSocket-Verbindung schließen
+        self.api_client.disconnect_websocket()
+        event.accept()
 
     def open_admin_panel(self):
         from .admin_room_dialog import AdminRoomDialog
