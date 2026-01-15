@@ -1,406 +1,236 @@
 """
-Admin-Endpunkte für Lehrer
-Raum- und Rätsel-Verwaltung
+Spiel-Endpunkte für Schüler
+Räume betreten, Rätsel lösen, Fortschritt speichern
 """
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
 import json
 import sys
-
 sys.path.append('..')
 
 from ..database import get_db
-from ..auth import get_current_teacher
+from ..auth import get_current_user
 from .. import models
-from shared.models import Room, RoomCreate, Puzzle, PuzzleCreate, User
-from shared.models import User  # ← Das ist schon weiter oben importiert
+from shared.models import Room, Puzzle, GameSession, PuzzleResult, PuzzleResultCreate, RoomProgress
 
-# 🔥 NEU: WebSocket Manager importieren
-from .websocket import manager
-
-router = APIRouter(prefix="/api/admin", tags=["admin"])
-
-from pydantic import BaseModel
-from typing import Optional, Dict, Any
-from datetime import datetime
+router = APIRouter(prefix="/api/game", tags=["game"])
 
 
-# Eigenes Response-Model für Puzzle, um den Fehler beim Erstellen eines Fehler zu verhindern
-class PuzzleResponse(BaseModel):
-    id: int
-    room_id: int
-    title: str
-    h5p_content_id: Optional[str] = None
-    h5p_json: Optional[str] = None  # ← Als String!
-    puzzle_type: str
-    order_index: int
-    points: int
-    time_limit_seconds: int
-    created_at: datetime
-
-    class Config:
-        from_attributes = True
-
-
-@router.get("/rooms", response_model=List[Room])
-async def get_rooms(
-        current_user: models.User = Depends(get_current_teacher),
+@router.get("/available-rooms", response_model=List[Room])
+async def get_available_rooms(
+        current_user: models.User = Depends(get_current_user),
         db: Session = Depends(get_db)
 ):
-    """Alle Räume des Lehrers abrufen"""
-    rooms = db.query(models.Room).filter(
-        models.Room.teacher_id == current_user.id
-    ).all()
-    return rooms
+    """Verfügbare Räume für Schüler abrufen"""
+
+    # 🔥 NEU: Admin sieht ALLE Räume
+    if current_user.role == "admin":
+        rooms = db.query(models.Room).all()
+        print(f"📋 Admin sieht alle Räume: {len(rooms)} gefunden")
+        return rooms
+
+    # Lehrer sehen alle ihre Räume
+    elif current_user.role == "teacher":
+        rooms = db.query(models.Room).filter(
+            models.Room.teacher_id == current_user.id
+        ).all()
+        print(f"📋 Lehrer sieht eigene Räume: {len(rooms)} gefunden")
+        return rooms
+
+    # Schüler sehen nur zugewiesene, aktive Räume
+    else:
+        rooms = db.query(models.Room).join(models.RoomAssignment).filter(
+            models.RoomAssignment.student_id == current_user.id,
+            models.Room.is_active == True
+        ).all()
+        print(f"📋 Schüler sieht zugewiesene Räume: {len(rooms)} gefunden")
+        return rooms
 
 
-@router.post("/rooms", response_model=Room)
-async def create_room(
-        room: RoomCreate,
-        current_user: models.User = Depends(get_current_teacher),
-        db: Session = Depends(get_db)
+@router.post("/start-session/{room_id}", response_model=GameSession)
+async def start_game_session(
+    room_id: int,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
 ):
-    """Neuen Raum erstellen"""
-    db_room = models.Room(
-        **room.dict(),
-        teacher_id=current_user.id
+    """Neue Spiel-Session starten"""
+    # Prüfen ob Raum existiert und zugänglich ist
+    room = db.query(models.Room).filter(models.Room.id == room_id).first()
+    if not room:
+        raise HTTPException(status_code=404, detail="Raum nicht gefunden")
+
+    # Für Schüler: Prüfen ob zugewiesen
+    if current_user.role == "student":
+        assignment = db.query(models.RoomAssignment).filter(
+            models.RoomAssignment.room_id == room_id,
+            models.RoomAssignment.student_id == current_user.id
+        ).first()
+
+        if not assignment:
+            raise HTTPException(status_code=403, detail="Zugriff verweigert")
+
+    # Prüfen ob bereits aktive Session existiert
+    existing_session = db.query(models.GameSession).filter(
+        models.GameSession.room_id == room_id,
+        models.GameSession.student_id == current_user.id,
+        models.GameSession.status == "in_progress"
+    ).first()
+
+    if existing_session:
+        return existing_session
+
+    # Neue Session erstellen
+    session = models.GameSession(
+        room_id=room_id,
+        student_id=current_user.id
     )
-    db.add(db_room)
+    db.add(session)
     db.commit()
-    db.refresh(db_room)
-
-    # 🔥 NEU: WebSocket Broadcast an alle Clients
-    await manager.broadcast({
-        "type": "rooms_updated",
-        "action": "room_created",
-        "room_id": db_room.id,
-        "room_name": db_room.name
-    })
-    print(f"📢 Broadcast gesendet: Raum '{db_room.name}' erstellt")
-
-    return db_room
+    db.refresh(session)
+    return session
 
 
-@router.put("/rooms/{room_id}", response_model=Room)
-async def update_room(
-        room_id: int,
-        room: RoomCreate,
-        current_user: models.User = Depends(get_current_teacher),
-        db: Session = Depends(get_db)
+@router.get("/session/{session_id}/puzzles", response_model=List[Puzzle])
+async def get_session_puzzles(
+    session_id: int,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
 ):
-    """Raum aktualisieren"""
-    db_room = db.query(models.Room).filter(
-        models.Room.id == room_id,
-        models.Room.teacher_id == current_user.id
+    """Rätsel für eine Session abrufen"""
+    # Session prüfen
+    session = db.query(models.GameSession).filter(
+        models.GameSession.id == session_id,
+        models.GameSession.student_id == current_user.id
     ).first()
 
-    if not db_room:
-        raise HTTPException(status_code=404, detail="Raum nicht gefunden")
+    if not session:
+        raise HTTPException(status_code=404, detail="Session nicht gefunden")
 
-    for key, value in room.dict().items():
-        setattr(db_room, key, value)
-
-    db.commit()
-    db.refresh(db_room)
-
-    # 🔥 NEU: Broadcast bei Update
-    await manager.broadcast({
-        "type": "rooms_updated",
-        "action": "room_updated",
-        "room_id": db_room.id
-    })
-
-    return db_room
-
-
-@router.delete("/rooms/{room_id}")
-async def delete_room(
-        room_id: int,
-        current_user: models.User = Depends(get_current_teacher),
-        db: Session = Depends(get_db)
-):
-    """Raum löschen"""
-    db_room = db.query(models.Room).filter(
-        models.Room.id == room_id,
-        models.Room.teacher_id == current_user.id
-    ).first()
-
-    if not db_room:
-        raise HTTPException(status_code=404, detail="Raum nicht gefunden")
-
-    db.delete(db_room)
-    db.commit()
-
-    # 🔥 NEU: Broadcast bei Löschen
-    await manager.broadcast({
-        "type": "rooms_updated",
-        "action": "room_deleted",
-        "room_id": room_id
-    })
-
-    return {"message": "Raum gelöscht"}
-
-
-@router.post("/rooms/{room_id}/activate")
-async def activate_room(
-        room_id: int,
-        current_user: models.User = Depends(get_current_teacher),
-        db: Session = Depends(get_db)
-):
-    """Raum aktivieren/deaktivieren"""
-    db_room = db.query(models.Room).filter(
-        models.Room.id == room_id,
-        models.Room.teacher_id == current_user.id
-    ).first()
-
-    if not db_room:
-        raise HTTPException(status_code=404, detail="Raum nicht gefunden")
-
-    db_room.is_active = not db_room.is_active
-    db.commit()
-
-    # 🔥 NEU: Broadcast bei Aktivierung
-    await manager.broadcast({
-        "type": "rooms_updated",
-        "action": "room_activated" if db_room.is_active else "room_deactivated",
-        "room_id": room_id
-    })
-
-    return {"is_active": db_room.is_active}
-
-
-@router.get("/rooms/{room_id}/puzzles", response_model=List[PuzzleResponse])
-async def get_puzzles(
-        room_id: int,
-        current_user: models.User = Depends(get_current_teacher),
-        db: Session = Depends(get_db)
-):
-    """Rätsel eines Raums abrufen"""
-    # Prüfen ob Raum dem Lehrer gehört
-    db_room = db.query(models.Room).filter(
-        models.Room.id == room_id,
-        models.Room.teacher_id == current_user.id
-    ).first()
-
-    if not db_room:
-        raise HTTPException(status_code=404, detail="Raum nicht gefunden")
-
+    # Rätsel laden
     puzzles = db.query(models.Puzzle).filter(
-        models.Puzzle.room_id == room_id
+        models.Puzzle.room_id == session.room_id
     ).order_by(models.Puzzle.order_index).all()
 
     return puzzles
 
 
-@router.post("/puzzles", response_model=PuzzleResponse)
-async def create_puzzle(
-        puzzle: PuzzleCreate,
-        current_user: models.User = Depends(get_current_teacher),
-        db: Session = Depends(get_db)
+@router.post("/submit-answer", response_model=PuzzleResult)
+async def submit_answer(
+    result: PuzzleResultCreate,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
 ):
-    """Neues Rätsel erstellen"""
-    # Prüfen ob Raum dem Lehrer gehört
-    db_room = db.query(models.Room).filter(
-        models.Room.id == puzzle.room_id,
-        models.Room.teacher_id == current_user.id
+    """Antwort einreichen und bewerten"""
+    # Session prüfen
+    session = db.query(models.GameSession).filter(
+        models.GameSession.id == result.session_id,
+        models.GameSession.student_id == current_user.id
     ).first()
 
-    if not db_room:
-        raise HTTPException(status_code=404, detail="Raum nicht gefunden")
+    if not session:
+        raise HTTPException(status_code=404, detail="Session nicht gefunden")
 
-    # WICHTIG: h5p_json muss als STRING gespeichert werden
-    import json
-    h5p_json_str = json.dumps(puzzle.h5p_json) if puzzle.h5p_json else None
+    # Rätsel laden
+    puzzle = db.query(models.Puzzle).filter(
+        models.Puzzle.id == result.puzzle_id
+    ).first()
 
-    db_puzzle = models.Puzzle(
-        room_id=puzzle.room_id,
-        title=puzzle.title,
-        h5p_content_id=puzzle.h5p_content_id,
-        h5p_json=h5p_json_str,  # ← Als String!
-        puzzle_type=puzzle.puzzle_type,
-        order_index=puzzle.order_index,
-        points=puzzle.points,
-        time_limit_seconds=puzzle.time_limit_seconds
+    if not puzzle:
+        raise HTTPException(status_code=404, detail="Rätsel nicht gefunden")
+
+    # Antwort bewerten
+    is_correct = False
+    points_earned = 0
+
+    # H5P-JSON parsen
+    h5p_data = json.loads(puzzle.h5p_json) if puzzle.h5p_json else {}
+
+    # Einfache Multiple-Choice-Bewertung
+    if puzzle.puzzle_type == "multiple_choice":
+        correct_index = h5p_data.get("correct", -1)
+        user_answer = result.answer_json.get("selected", -1)
+        is_correct = (correct_index == user_answer)
+
+        if is_correct:
+            points_earned = puzzle.points
+
+    # Ergebnis speichern
+    db_result = models.PuzzleResult(
+        session_id=result.session_id,
+        puzzle_id=result.puzzle_id,
+        answer_json=json.dumps(result.answer_json),
+        is_correct=is_correct,
+        points_earned=points_earned,
+        time_taken_seconds=result.time_taken_seconds
     )
 
-    db.add(db_puzzle)
-    db.commit()
-    db.refresh(db_puzzle)
+    db.add(db_result)
 
-    # 🔥 NEU: Broadcast bei Puzzle-Erstellung
-    # (optional - wenn du willst dass Puzzles auch Updates triggern)
-    await manager.broadcast({
-        "type": "rooms_updated",
-        "action": "puzzle_added",
-        "room_id": puzzle.room_id
-    })
-
-    return db_puzzle
-
-
-@router.put("/puzzles/{puzzle_id}", response_model=Puzzle)
-async def update_puzzle(
-        puzzle_id: int,
-        puzzle: PuzzleCreate,
-        current_user: models.User = Depends(get_current_teacher),
-        db: Session = Depends(get_db)
-):
-    """Rätsel aktualisieren"""
-    db_puzzle = db.query(models.Puzzle).join(models.Room).filter(
-        models.Puzzle.id == puzzle_id,
-        models.Room.teacher_id == current_user.id
-    ).first()
-
-    if not db_puzzle:
-        raise HTTPException(status_code=404, detail="Rätsel nicht gefunden")
-
-    for key, value in puzzle.dict().items():
-        setattr(db_puzzle, key, value)
+    # Session-Score aktualisieren
+    session.total_score += points_earned
 
     db.commit()
-    db.refresh(db_puzzle)
-    return db_puzzle
+    db.refresh(db_result)
+
+    return db_result
 
 
-@router.delete("/puzzles/{puzzle_id}")
-async def delete_puzzle(
-        puzzle_id: int,
-        current_user: models.User = Depends(get_current_teacher),
-        db: Session = Depends(get_db)
+@router.get("/session/{session_id}/progress", response_model=RoomProgress)
+async def get_session_progress(
+    session_id: int,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
 ):
-    """Rätsel löschen"""
-    db_puzzle = db.query(models.Puzzle).join(models.Room).filter(
-        models.Puzzle.id == puzzle_id,
-        models.Room.teacher_id == current_user.id
+    """Fortschritt einer Session abrufen"""
+    # Session prüfen
+    session = db.query(models.GameSession).filter(
+        models.GameSession.id == session_id,
+        models.GameSession.student_id == current_user.id
     ).first()
 
-    if not db_puzzle:
-        raise HTTPException(status_code=404, detail="Rätsel nicht gefunden")
+    if not session:
+        raise HTTPException(status_code=404, detail="Session nicht gefunden")
 
-    db.delete(db_puzzle)
-    db.commit()
-    return {"message": "Rätsel gelöscht"}
+    # Anzahl gelöster Rätsel
+    completed_count = db.query(models.PuzzleResult).filter(
+        models.PuzzleResult.session_id == session_id
+    ).count()
+
+    # Gesamt-Rätsel im Raum
+    total_count = db.query(models.Puzzle).filter(
+        models.Puzzle.room_id == session.room_id
+    ).count()
+
+    return RoomProgress(
+        room_id=session.room_id,
+        student_id=session.student_id,
+        completed_puzzles=completed_count,
+        total_puzzles=total_count,
+        current_score=session.total_score,
+        status=session.status
+    )
 
 
-@router.post("/rooms/{room_id}/assign-student")
-async def assign_student_to_room(
-        room_id: int,
-        student_id: int,
-        current_user: models.User = Depends(get_current_teacher),
-        db: Session = Depends(get_db)
+@router.post("/session/{session_id}/complete")
+async def complete_session(
+    session_id: int,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
 ):
-    """Schüler einem Raum zuweisen"""
-    # Prüfen ob Raum dem Lehrer gehört
-    db_room = db.query(models.Room).filter(
-        models.Room.id == room_id,
-        models.Room.teacher_id == current_user.id
+    """Session als abgeschlossen markieren"""
+    from datetime import datetime
+
+    session = db.query(models.GameSession).filter(
+        models.GameSession.id == session_id,
+        models.GameSession.student_id == current_user.id
     ).first()
 
-    if not db_room:
-        raise HTTPException(status_code=404, detail="Raum nicht gefunden")
+    if not session:
+        raise HTTPException(status_code=404, detail="Session nicht gefunden")
 
-    # Prüfen ob Schüler existiert
-    student = db.query(models.User).filter(
-        models.User.id == student_id,
-        models.User.role == "student"
-    ).first()
-
-    if not student:
-        raise HTTPException(status_code=404, detail="Schüler nicht gefunden")
-
-    # Zuweisung erstellen (falls nicht vorhanden)
-    existing = db.query(models.RoomAssignment).filter(
-        models.RoomAssignment.room_id == room_id,
-        models.RoomAssignment.student_id == student_id
-    ).first()
-
-    if existing:
-        return {"message": "Schüler bereits zugewiesen"}
-
-    assignment = models.RoomAssignment(room_id=room_id, student_id=student_id)
-    db.add(assignment)
-    db.commit()
-
-    # 🔥 NEU: Broadcast bei Student-Zuweisung
-    await manager.broadcast({
-        "type": "rooms_updated",
-        "action": "student_assigned",
-        "room_id": room_id
-    })
-
-    return {"message": "Schüler zugewiesen"}
-
-
-@router.get("/students", response_model=List[User])
-async def get_students(
-        current_user: models.User = Depends(get_current_teacher),
-        db: Session = Depends(get_db)
-):
-    """Alle Schüler abrufen"""
-    students = db.query(models.User).filter(
-        models.User.role == "student"
-    ).all()
-    return students
-
-
-@router.get("/teachers", response_model=List[User])
-async def get_teachers(
-        current_user: models.User = Depends(get_current_teacher),
-        db: Session = Depends(get_db)
-):
-    """Alle Lehrer abrufen (nur für Lehrer)"""
-    teachers = db.query(models.User).filter(
-        models.User.role == "teacher"
-    ).all()
-    return teachers
-
-
-@router.get("/pending-teachers", response_model=List[User])
-async def get_pending_teachers(
-        current_user: models.User = Depends(get_current_teacher),
-        db: Session = Depends(get_db)
-):
-    """Wartende Lehrer-Registrierungen"""
-    # Nur freigeschaltete Lehrer dürfen das
-    if not current_user.is_approved:
-        raise HTTPException(403, "Keine Berechtigung")
-
-    pending = db.query(models.User).filter(
-        models.User.role == 'teacher',
-        models.User.is_approved == False
-    ).all()
-
-    return pending
-
-
-@router.post("/approve-teacher/{teacher_id}")
-async def approve_teacher(
-        teacher_id: int,
-        approve: bool = True,
-        current_user: models.User = Depends(get_current_teacher),
-        db: Session = Depends(get_db)
-):
-    """Lehrer freischalten oder ablehnen"""
-    if not current_user.is_approved:
-        raise HTTPException(403, "Keine Berechtigung")
-
-    teacher = db.query(models.User).filter(
-        models.User.id == teacher_id,
-        models.User.role == 'teacher'
-    ).first()
-
-    if not teacher:
-        raise HTTPException(404, "Lehrer nicht gefunden")
-
-    if approve:
-        teacher.is_active = True
-        teacher.is_approved = True
-        message = f"✅ Lehrer '{teacher.full_name}' wurde freigeschaltet"
-    else:
-        db.delete(teacher)
-        message = f"❌ Registrierung von '{teacher.full_name}' wurde abgelehnt"
+    session.status = "completed"
+    session.completed_at = datetime.utcnow()
 
     db.commit()
-
-    return {"message": message, "approved": approve}
+    return {"message": "Session abgeschlossen", "total_score": session.total_score}
