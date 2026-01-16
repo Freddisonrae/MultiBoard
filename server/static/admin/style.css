@@ -1,4 +1,4 @@
-/* Admin-Panel Styling */
+/* Admin-Panel Styling mit H5P Support */
 * {
     margin: 0;
     padding: 0;
@@ -35,7 +35,6 @@ body {
     font-size: 2.5em;
 }
 
-/* Tab-Umschalter */
 .auth-tabs {
     display: flex;
     gap: 10px;
@@ -65,7 +64,6 @@ body {
     border-bottom-color: #667eea;
 }
 
-/* Forms */
 .auth-form {
     display: none;
 }
@@ -85,7 +83,9 @@ body {
     margin-bottom: 20px;
 }
 
-.form-group input {
+.form-group input,
+.form-group textarea,
+.form-group select {
     width: 100%;
     padding: 15px;
     border: 2px solid #e0e0e0;
@@ -95,7 +95,9 @@ body {
     box-sizing: border-box;
 }
 
-.form-group input:focus {
+.form-group input:focus,
+.form-group textarea:focus,
+.form-group select:focus {
     outline: none;
     border-color: #667eea;
 }
@@ -107,15 +109,16 @@ body {
     font-size: 13px;
 }
 
-.approval-notice {
-    background: #fff3cd;
-    border: 1px solid #ffc107;
-    color: #856404;
-    padding: 12px;
-    border-radius: 8px;
-    margin-bottom: 20px;
-    font-size: 14px;
-    text-align: center;
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+    color: #333;
+}
+
+.form-group textarea {
+    resize: vertical;
+    min-height: 100px;
 }
 
 .btn-primary {
@@ -137,6 +140,48 @@ body {
 
 .btn-primary:active {
     transform: translateY(0);
+}
+
+.btn-primary:disabled {
+    background-color: #cccccc;
+    cursor: not-allowed;
+}
+
+.btn-secondary {
+    background: white;
+    color: #667eea;
+    padding: 10px 20px;
+    border: 2px solid #667eea;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-secondary:hover {
+    background: #667eea;
+    color: white;
+}
+
+.btn-danger {
+    background: #e74c3c;
+    color: white;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 6px;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.btn-success {
+    background: #27ae60;
+    color: white;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 6px;
+    font-size: 13px;
+    cursor: pointer;
 }
 
 .message {
@@ -198,7 +243,6 @@ header h1 {
     gap: 15px;
 }
 
-/* Tabs */
 .tabs {
     display: flex;
     background: #f5f5f5;
@@ -236,73 +280,19 @@ header h1 {
     display: block;
 }
 
-/* Toolbar */
 .toolbar {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 10px;
 }
 
 .toolbar h2 {
     color: #333;
 }
 
-/* Buttons */
-.btn-primary {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    padding: 12px 24px;
-    border: none;
-    border-radius: 8px;
-    font-size: 14px;
-    font-weight: bold;
-    cursor: pointer;
-    transition: transform 0.2s;
-}
-
-.btn-primary:hover {
-    transform: translateY(-2px);
-}
-
-.btn-secondary {
-    background: white;
-    color: #667eea;
-    padding: 10px 20px;
-    border: 2px solid #667eea;
-    border-radius: 8px;
-    font-size: 14px;
-    font-weight: bold;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.btn-secondary:hover {
-    background: #667eea;
-    color: white;
-}
-
-.btn-danger {
-    background: #e74c3c;
-    color: white;
-    padding: 8px 16px;
-    border: none;
-    border-radius: 6px;
-    font-size: 13px;
-    cursor: pointer;
-}
-
-.btn-success {
-    background: #27ae60;
-    color: white;
-    padding: 8px 16px;
-    border: none;
-    border-radius: 6px;
-    font-size: 13px;
-    cursor: pointer;
-}
-
-/* Items Grid (Räume) */
 .items-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
@@ -350,9 +340,9 @@ header h1 {
     display: flex;
     gap: 10px;
     margin-top: 15px;
+    flex-wrap: wrap;
 }
 
-/* Items List (Rätsel, Schüler) */
 .items-list {
     display: flex;
     flex-direction: column;
@@ -367,6 +357,8 @@ header h1 {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    flex-wrap: wrap;
+    gap: 15px;
 }
 
 .item-info h4 {
@@ -382,6 +374,7 @@ header h1 {
 .item-actions {
     display: flex;
     gap: 10px;
+    flex-wrap: wrap;
 }
 
 /* Modal */
@@ -412,6 +405,10 @@ header h1 {
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
 }
 
+.modal-large {
+    max-width: 1000px;
+}
+
 .modal-header {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
@@ -426,7 +423,8 @@ header h1 {
     margin: 0;
 }
 
-#modal-close {
+#modal-close,
+#h5p-preview-close {
     background: transparent;
     border: none;
     color: white;
@@ -439,36 +437,116 @@ header h1 {
     padding: 30px;
 }
 
-.form-group {
+/* 🔥 NEU: H5P-spezifische Styles */
+.h5p-upload-info {
+    background: #e8eaff;
+    border-left: 4px solid #667eea;
+    padding: 15px;
     margin-bottom: 20px;
+    border-radius: 5px;
 }
 
-.form-group label {
-    display: block;
-    margin-bottom: 8px;
-    font-weight: 500;
-    color: #333;
+.h5p-upload-info p {
+    margin: 5px 0;
 }
 
-.form-group input,
-.form-group textarea,
-.form-group select {
+.h5p-upload-info a {
+    color: #667eea;
+    font-weight: bold;
+    text-decoration: none;
+}
+
+.h5p-upload-info a:hover {
+    text-decoration: underline;
+}
+
+.progress-bar {
     width: 100%;
-    padding: 12px;
-    border: 2px solid #e0e0e0;
-    border-radius: 8px;
-    font-size: 14px;
+    height: 30px;
+    background: #e0e0e0;
+    border-radius: 15px;
+    overflow: hidden;
+    margin: 15px 0;
 }
 
-.form-group textarea {
-    resize: vertical;
-    min-height: 100px;
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    width: 0%;
+    transition: width 0.3s;
+    animation: pulse 1.5s infinite;
 }
 
-select {
-    padding: 12px;
-    border: 2px solid #e0e0e0;
-    border-radius: 8px;
-    font-size: 14px;
-    background: white;
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+#upload-status {
+    text-align: center;
+    font-weight: bold;
+    color: #667eea;
+    margin-top: 10px;
+}
+
+/* H5P Container Styling */
+.h5p-container {
+    min-height: 400px;
+    padding: 20px;
+    background: #f9f9f9;
+    border-radius: 10px;
+}
+
+/* H5P Standalone Overrides */
+.h5p-standalone {
+    max-width: 100%;
+}
+
+.h5p-standalone iframe {
+    border-radius: 10px;
+}
+
+/* File Input Styling */
+input[type="file"] {
+    padding: 10px !important;
+    cursor: pointer;
+}
+
+input[type="file"]::-webkit-file-upload-button {
+    background: #667eea;
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+input[type="file"]::-webkit-file-upload-button:hover {
+    background: #5568d3;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .toolbar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .items-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .item-card {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .item-actions {
+        justify-content: stretch;
+    }
+
+    .item-actions button {
+        flex: 1;
+    }
 }

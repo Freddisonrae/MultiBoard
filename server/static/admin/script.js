@@ -1,7 +1,8 @@
-// Admin-Panel JavaScript - MultiRoom
+// Admin-Panel JavaScript - MultiRoom mit H5P Support
 const API_BASE = window.location.origin;
 let authToken = null;
 let currentUser = null;
+let currentRoomId = null;
 
 // Initialisierung
 document.addEventListener('DOMContentLoaded', () => {
@@ -18,7 +19,7 @@ function initApp() {
     document.getElementById('login-form').addEventListener('submit', handleLogin);
     document.getElementById('register-form').addEventListener('submit', handleRegister);
 
-    // Dashboard-Event-Listeners (werden später aktiviert)
+    // Dashboard-Event-Listeners
     const logoutBtn = document.getElementById('logout-btn');
     if (logoutBtn) {
         logoutBtn.addEventListener('click', handleLogout);
@@ -34,9 +35,21 @@ function initApp() {
         createPuzzleBtn.addEventListener('click', showCreatePuzzleModal);
     }
 
+    // 🔥 NEU: H5P Upload Button
+    const uploadH5pBtn = document.getElementById('upload-h5p-btn');
+    if (uploadH5pBtn) {
+        uploadH5pBtn.addEventListener('click', showH5PUploadModal);
+    }
+
     const modalClose = document.getElementById('modal-close');
     if (modalClose) {
         modalClose.addEventListener('click', closeModal);
+    }
+
+    // H5P Preview Modal schließen
+    const h5pPreviewClose = document.getElementById('h5p-preview-close');
+    if (h5pPreviewClose) {
+        h5pPreviewClose.addEventListener('click', closeH5PPreview);
     }
 
     // Tab-Switching im Dashboard
@@ -56,24 +69,18 @@ function initApp() {
     }
 }
 
+// [... Bestehende Login/Register/Tab-Funktionen bleiben gleich ...]
 // Tab-Umschalter für Login/Register
 function switchAuthMode(mode) {
-    // Tabs umschalten
     document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
     document.querySelector(`[data-mode="${mode}"]`).classList.add('active');
-
-    // Forms umschalten
     document.querySelectorAll('.auth-form').forEach(f => f.classList.remove('active'));
     document.getElementById(`${mode}-form`).classList.add('active');
-
-    // Nachricht ausblenden
     hideMessage();
 }
 
-// Login
 async function handleLogin(e) {
     e.preventDefault();
-
     const username = document.getElementById('login-username').value.trim();
     const password = document.getElementById('login-password').value.trim();
 
@@ -101,21 +108,14 @@ async function handleLogin(e) {
             return;
         }
 
-        // WICHTIG: Token global speichern
         authToken = data.access_token;
         currentUser = data.user;
 
-        console.log('✅ Login erfolgreich!'); // DEBUG
-        console.log('🔑 Token gespeichert:', authToken); // DEBUG
-        console.log('👤 User:', currentUser); // DEBUG
-
-        // In localStorage speichern
         localStorage.setItem('authToken', authToken);
         localStorage.setItem('currentUser', JSON.stringify(currentUser));
 
         showMessage('Anmeldung erfolgreich! Lade Dashboard...', 'success');
 
-        // Dashboard anzeigen
         setTimeout(() => {
             showDashboard();
             loadRooms();
@@ -127,16 +127,13 @@ async function handleLogin(e) {
     }
 }
 
-// Registrierung
 async function handleRegister(e) {
     e.preventDefault();
-
     const username = document.getElementById('reg-username').value.trim();
     const fullname = document.getElementById('reg-fullname').value.trim();
     const password = document.getElementById('reg-password').value;
     const password2 = document.getElementById('reg-password2').value;
 
-    // Validierung
     if (!username || !fullname || !password || !password2) {
         showMessage('Bitte alle Felder ausfüllen', 'error');
         return;
@@ -176,17 +173,13 @@ async function handleRegister(e) {
             return;
         }
 
-        // Erfolg
         showMessage(
-            '✅ Registrierung erfolgreich! Ihr Account muss von einem Administrator freigeschaltet werden. ' +
-            'Sie werden benachrichtigt, sobald Sie sich anmelden können.',
+            '✅ Registrierung erfolgreich! Sie können sich jetzt anmelden.',
             'success'
         );
 
-        // Formular zurücksetzen
         document.getElementById('register-form').reset();
 
-        // Nach 3 Sekunden zum Login wechseln
         setTimeout(() => {
             switchAuthMode('login');
         }, 3000);
@@ -197,7 +190,6 @@ async function handleRegister(e) {
     }
 }
 
-// Nachrichten anzeigen
 function showMessage(text, type) {
     const msg = document.getElementById('auth-message');
     msg.textContent = text;
@@ -209,10 +201,6 @@ function hideMessage() {
     msg.className = 'message';
 }
 
-function showError(message) {
-    showMessage(message, 'error');
-}
-
 function handleLogout() {
     authToken = null;
     currentUser = null;
@@ -222,7 +210,6 @@ function handleLogout() {
     document.getElementById('auth-container').style.display = 'block';
     document.getElementById('dashboard-container').style.display = 'none';
 
-    // Formulare zurücksetzen
     document.getElementById('login-form').reset();
     document.getElementById('register-form').reset();
     switchAuthMode('login');
@@ -234,18 +221,19 @@ function showDashboard() {
     document.getElementById('user-name').textContent = currentUser.full_name || currentUser.username;
 }
 
-// API-Helfer
 async function apiRequest(endpoint, options = {}) {
     const headers = {
-        'Content-Type': 'application/json',
         ...options.headers
     };
+
+    // Content-Type NUR wenn kein FormData
+    if (!(options.body instanceof FormData)) {
+        headers['Content-Type'] = 'application/json';
+    }
 
     if (authToken) {
         headers['Authorization'] = `Bearer ${authToken}`;
     }
-
-    console.log('🌐 API Request:', endpoint, headers); // DEBUG
 
     const response = await fetch(`${API_BASE}${endpoint}`, {
         ...options,
@@ -254,14 +242,12 @@ async function apiRequest(endpoint, options = {}) {
 
     if (!response.ok) {
         const error = await response.text();
-        console.error('❌ API Error:', response.status, error);
         throw new Error(`API Error: ${response.status}`);
     }
 
     return response.json();
 }
 
-// Tab-Switching
 function switchTab(tabName) {
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active'));
@@ -269,13 +255,11 @@ function switchTab(tabName) {
     document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
     document.getElementById(`${tabName}-tab`).classList.add('active');
 
-    // Daten laden
     if (tabName === 'rooms') loadRooms();
     else if (tabName === 'puzzles') loadPuzzles();
     else if (tabName === 'students') loadStudents();
 }
 
-// Räume laden
 async function loadRooms() {
     try {
         const rooms = await apiRequest('/api/admin/rooms');
@@ -334,7 +318,6 @@ async function deleteRoom(roomId) {
     }
 }
 
-// Raum erstellen/bearbeiten
 function showCreateRoomModal() {
     showModal('Neuer Raum', `
         <form id="room-form">
@@ -377,12 +360,138 @@ function showCreateRoomModal() {
     });
 }
 
-// Rätsel laden
+// 🔥 NEU: H5P Upload Modal
+function showH5PUploadModal() {
+    const roomId = document.getElementById('room-select').value;
+    if (!roomId) {
+        alert('Bitte wählen Sie zuerst einen Raum aus');
+        return;
+    }
+
+    currentRoomId = roomId;
+
+    showModal('H5P-Datei hochladen', `
+        <div class="h5p-upload-info">
+            <p>📤 Laden Sie eine .h5p Datei hoch</p>
+            <p style="font-size: 14px; color: #666;">
+                H5P-Dateien können Sie von <a href="https://h5p.org" target="_blank">h5p.org</a> herunterladen
+                oder mit dem H5P-Editor erstellen.
+            </p>
+        </div>
+
+        <form id="h5p-upload-form" enctype="multipart/form-data">
+            <div class="form-group">
+                <label>H5P-Datei auswählen (.h5p)</label>
+                <input type="file" id="h5p-file" accept=".h5p" required>
+            </div>
+
+            <div id="upload-progress" style="display: none;">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progress-fill"></div>
+                </div>
+                <p id="upload-status">Hochladen...</p>
+            </div>
+
+            <button type="submit" class="btn-primary" id="upload-submit-btn">Hochladen & Vorschau</button>
+        </form>
+    `);
+
+    document.getElementById('h5p-upload-form').addEventListener('submit', handleH5PUpload);
+}
+
+async function handleH5PUpload(e) {
+    e.preventDefault();
+
+    const fileInput = document.getElementById('h5p-file');
+    const file = fileInput.files[0];
+
+    if (!file) {
+        alert('Bitte wählen Sie eine Datei aus');
+        return;
+    }
+
+    if (!file.name.endsWith('.h5p')) {
+        alert('Bitte wählen Sie eine .h5p Datei');
+        return;
+    }
+
+    // Upload UI zeigen
+    document.getElementById('upload-progress').style.display = 'block';
+    document.getElementById('upload-submit-btn').disabled = true;
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+        const response = await fetch(
+            `${API_BASE}/api/admin/h5p/upload?room_id=${currentRoomId}`,
+            {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${authToken}`
+                },
+                body: formData
+            }
+        );
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Upload fehlgeschlagen');
+        }
+
+        const result = await response.json();
+
+        document.getElementById('upload-status').textContent = '✅ Upload erfolgreich!';
+
+        // Modal schließen und Puzzle-Liste neu laden
+        setTimeout(() => {
+            closeModal();
+            loadPuzzles();
+
+            // H5P-Vorschau zeigen
+            showH5PPreview(result.content_id);
+        }, 1000);
+
+    } catch (error) {
+        console.error('Upload error:', error);
+        document.getElementById('upload-status').textContent = '❌ ' + error.message;
+        document.getElementById('upload-submit-btn').disabled = false;
+    }
+}
+
+// 🔥 NEU: H5P Vorschau anzeigen
+function showH5PPreview(contentId) {
+    const overlay = document.getElementById('h5p-preview-overlay');
+    const container = document.getElementById('h5p-preview-container');
+
+    overlay.classList.add('active');
+
+    // H5P Standalone initialisieren
+    container.innerHTML = ''; // Clear previous content
+
+    const h5pContainer = document.createElement('div');
+    h5pContainer.className = 'h5p-standalone';
+    container.appendChild(h5pContainer);
+
+    new H5PStandalone.H5P(h5pContainer, {
+        h5pJsonPath: `/static/h5p-content/${contentId}`,
+        frameJs: '/static/h5p-standalone/dist/frame.bundle.js',
+        frameCss: '/static/h5p-standalone/dist/styles/h5p.css',
+    });
+}
+
+function closeH5PPreview() {
+    const overlay = document.getElementById('h5p-preview-overlay');
+    overlay.classList.remove('active');
+
+    // Container leeren
+    document.getElementById('h5p-preview-container').innerHTML = '';
+}
+
 async function loadPuzzles() {
     try {
         const rooms = await apiRequest('/api/admin/rooms');
 
-        // Room-Select füllen
         const select = document.getElementById('room-select');
         select.innerHTML = '<option value="">Raum auswählen...</option>' +
             rooms.map(r => `<option value="${r.id}">${r.name}</option>`).join('');
@@ -411,9 +520,17 @@ function displayPuzzles(puzzles) {
         <div class="item-card">
             <div class="item-info">
                 <h4>${puzzle.title}</h4>
-                <p>Typ: ${puzzle.puzzle_type} | Punkte: ${puzzle.points} | Zeit: ${puzzle.time_limit_seconds}s</p>
+                <p>
+                    Typ: ${puzzle.puzzle_type} |
+                    Punkte: ${puzzle.points} |
+                    Zeit: ${puzzle.time_limit_seconds}s
+                    ${puzzle.h5p_content_id ? ' | 🎨 H5P-Interaktiv' : ''}
+                </p>
             </div>
             <div class="item-actions">
+                ${puzzle.h5p_content_id ?
+                    `<button class="btn-secondary" onclick="showH5PPreview('${puzzle.h5p_content_id}')">👁️ Vorschau</button>`
+                    : ''}
                 <button class="btn-secondary" onclick="editPuzzle(${puzzle.id})">Bearbeiten</button>
                 <button class="btn-danger" onclick="deletePuzzle(${puzzle.id})">Löschen</button>
             </div>
@@ -428,7 +545,7 @@ function showCreatePuzzleModal() {
         return;
     }
 
-    showModal('Neues Rätsel', `
+    showModal('Neues Rätsel (Manuell)', `
         <form id="puzzle-form">
             <div class="form-group">
                 <label>Titel</label>
@@ -500,7 +617,6 @@ function showCreatePuzzleModal() {
             loadPuzzles();
         } catch (error) {
             alert('Fehler beim Erstellen des Rätsels');
-            console.log("Gesendete Daten:", puzzleData)
         }
     });
 }
@@ -516,7 +632,6 @@ async function deletePuzzle(puzzleId) {
     }
 }
 
-// Schüler laden
 async function loadStudents() {
     try {
         const students = await apiRequest('/api/admin/students');
@@ -544,7 +659,6 @@ function displayStudents(students) {
     `).join('');
 }
 
-// Modal-Funktionen
 function showModal(title, content) {
     document.getElementById('modal-title').textContent = title;
     document.getElementById('modal-body').innerHTML = content;

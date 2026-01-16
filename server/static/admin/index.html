@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin-Panel - MultiRoom</title>
     <link rel="stylesheet" href="style.css">
+    <!-- H5P Standalone Player -->
+    <script type="text/javascript" src="/static/h5p-standalone/dist/main.bundle.js"></script>
 </head>
 <body>
     <div id="app">
@@ -88,7 +90,8 @@
                     <select id="room-select">
                         <option value="">Raum auswählen...</option>
                     </select>
-                    <button id="create-puzzle-btn" class="btn-primary">+ Neues Rätsel</button>
+                    <button id="create-puzzle-btn" class="btn-primary">+ Manuelles Rätsel</button>
+                    <button id="upload-h5p-btn" class="btn-success">📤 H5P hochladen</button>
                 </div>
                 <div id="puzzles-list" class="items-list"></div>
             </div>
@@ -109,15 +112,6 @@
                     <p>Statistiken werden hier angezeigt...</p>
                 </div>
             </div>
-
-            <!-- Nach dem Statistiken-Tab -->
-            <div id="approvals-tab" class="tab-content">
-                <div class="toolbar">
-                    <h2>Wartende Registrierungen</h2>
-                    <button onclick="loadPendingTeachers()" class="btn-secondary">🔄 Aktualisieren</button>
-                </div>
-                <div id="pending-list" class="items-list"></div>
-            </div>
         </div>
     </div>
 
@@ -129,6 +123,19 @@
                 <button id="modal-close">&times;</button>
             </div>
             <div class="modal-body" id="modal-body"></div>
+        </div>
+    </div>
+
+    <!-- H5P Vorschau Modal -->
+    <div id="h5p-preview-overlay" class="modal-overlay">
+        <div class="modal modal-large">
+            <div class="modal-header">
+                <h3>H5P Vorschau</h3>
+                <button id="h5p-preview-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="h5p-preview-container" class="h5p-container"></div>
+            </div>
         </div>
     </div>
 
