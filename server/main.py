@@ -157,13 +157,10 @@ class TeacherRegistration(BaseModel):
 if __name__ == "__main__":
     import uvicorn
 
-    # Server starten
-    # Development: mit Reload
-    # Production: ohne Reload, mit mehreren Workern
     uvicorn.run(
         "main:app",
-        host="10.13.20.26",
+        host="0.0.0.0",
         port=8000,
-        reload=True,  # Nur für Development
+        reload=True,
         log_level="info"
     )
