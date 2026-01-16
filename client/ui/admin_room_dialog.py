@@ -2,8 +2,7 @@ from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QLabel, QLineEdit, QSpinBox,
     QPushButton, QHBoxLayout, QMessageBox, QComboBox
 )
-from PySide6.QtCore import Qt
-
+from PySide6.QtCore import Qt, QTimer
 
 class AdminRoomDialog(QDialog):
     """Admin-Dialog zum Erstellen eines Raums"""

@@ -7,6 +7,8 @@ import json
 from typing import Optional, List, Dict, Any
 from pathlib import Path
 import hashlib
+import threading
+import websocket
 
 
 class APIClient:
@@ -16,10 +18,17 @@ class APIClient:
         self.base_url = base_url
         self.token: Optional[str] = None
         self.user: Optional[Dict] = None
+
         # Offline-Quiz Support
         self.offline_rooms: List[Dict] = []
         self._offline_sessions: Dict[int, Dict] = {}
         self._offline_next_session_id = 100000
+
+        # WebSocket-Variablen
+        self._ws: Optional[websocket.WebSocketApp] = None
+        self._ws_thread: Optional[threading.Thread] = None
+        self._on_rooms_updated: Optional[callable] = None
+        self._ws_connected = False
 
     def _get_headers(self) -> Dict[str, str]:
         """Erstellt Headers mit Auth-Token"""
@@ -53,6 +62,7 @@ class APIClient:
             return False
 
     def get_available_rooms(self) -> List[Dict]:
+        """Holt verfügbare Räume (online + offline)"""
         try:
             response = requests.get(
                 f"{self.base_url}/api/game/available-rooms",
@@ -67,8 +77,8 @@ class APIClient:
             print(f"Fehler beim Laden der Räume: {e}")
             return self.offline_rooms
 
-
     def start_session(self, room_id: int):
+        """Startet eine neue Session"""
         room = next((r for r in self.offline_rooms if r["id"] == room_id), None)
         if room and room.get("mode") == "offline":
             session_id = self._offline_next_session_id
@@ -95,6 +105,7 @@ class APIClient:
             return None
 
     def submit_answer(self, session_id: int, puzzle_id: int, answer: Dict[str, Any], time_taken: int) -> Optional[Dict]:
+        """Sendet Antwort"""
         # OFFLINE
         if session_id in self._offline_sessions:
             puzzles = self._offline_sessions[session_id]["puzzles"]
@@ -112,7 +123,7 @@ class APIClient:
                 "points_earned": 10 if is_correct else 0
             }
 
-        # ONLINE (dein bisheriger Code)
+        # ONLINE
         try:
             data = {
                 "session_id": session_id,
@@ -167,6 +178,7 @@ class APIClient:
             return False
 
     def register(self, username: str, password: str, is_admin: bool = False) -> bool:
+        """Registriert neuen User"""
         try:
             response = requests.post(
                 f"{self.base_url}/api/auth/register",
@@ -179,6 +191,7 @@ class APIClient:
             return False
 
     def load_quiz_json_file(self, filepath: str) -> Dict:
+        """Lädt Quiz aus JSON-Datei"""
         p = Path(filepath).resolve()
         data = json.loads(p.read_text(encoding="utf-8"))
 
@@ -231,6 +244,7 @@ class APIClient:
         return room
 
     def get_session_puzzles(self, session_id: int) -> List[Dict]:
+        """Holt Rätsel für Session"""
         # OFFLINE
         if session_id in self._offline_sessions:
             return self._offline_sessions[session_id]["puzzles"]
@@ -248,3 +262,85 @@ class APIClient:
         except Exception as e:
             print(f"Fehler beim Laden der Rätsel: {e}")
             return []
+
+    # 🔥 WEBSOCKET-METHODEN
+    def connect_websocket(self, on_rooms_updated: callable):
+        """
+        Startet WebSocket-Verbindung für Live-Updates
+
+        Args:
+            on_rooms_updated: Callback-Funktion die aufgerufen wird,
+                             wenn sich Räume ändern
+        """
+        self._on_rooms_updated = on_rooms_updated
+
+        # HTTP -> WebSocket URL
+        ws_url = self.base_url.replace("http://", "ws://").replace("https://", "wss://")
+        ws_url += "/ws/rooms"
+
+        def on_message(ws, message):
+            """Wird aufgerufen wenn Nachricht vom Server kommt"""
+            try:
+                data = json.loads(message)
+                print(f"📨 WebSocket Nachricht: {data}")
+
+                if data.get("type") == "rooms_updated":
+                    # Räume neu laden
+                    rooms = self.get_available_rooms()
+
+                    # Callback aufrufen (= GUI updaten)
+                    if self._on_rooms_updated:
+                        self._on_rooms_updated(rooms)
+
+            except Exception as e:
+                print(f"Fehler beim Verarbeiten der Nachricht: {e}")
+
+        def on_error(ws, error):
+            """Bei Fehlern"""
+            print(f"❌ WebSocket Fehler: {error}")
+            self._ws_connected = False
+
+        def on_close(ws, close_status_code, close_msg):
+            """Verbindung geschlossen"""
+            print("🔌 WebSocket geschlossen")
+            self._ws_connected = False
+
+        def on_open(ws):
+            """Verbindung hergestellt"""
+            print("✅ WebSocket verbunden!")
+            self._ws_connected = True
+
+            # Optional: Keep-Alive senden
+            def send_ping():
+                import time
+                while self._ws_connected:
+                    try:
+                        ws.send("ping")
+                        time.sleep(30)  # Alle 30 Sekunden
+                    except:
+                        break
+
+            ping_thread = threading.Thread(target=send_ping, daemon=True)
+            ping_thread.start()
+
+        # WebSocket erstellen
+        self._ws = websocket.WebSocketApp(
+            ws_url,
+            on_message=on_message,
+            on_error=on_error,
+            on_close=on_close,
+            on_open=on_open
+        )
+
+        # In eigenem Thread starten (blockiert nicht!)
+        def run_websocket():
+            self._ws.run_forever()
+
+        self._ws_thread = threading.Thread(target=run_websocket, daemon=True)
+        self._ws_thread.start()
+
+    def disconnect_websocket(self):
+        """WebSocket-Verbindung schließen"""
+        if self._ws:
+            self._ws.close()
+            self._ws_connected = False

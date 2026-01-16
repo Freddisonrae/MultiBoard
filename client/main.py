@@ -23,7 +23,7 @@ def main():
 
     # API-Client erstellen
     # Server-URL anpassen falls nötig
-    api_client = APIClient(base_url="http://10.254.4.153:8000")
+    api_client = APIClient(base_url="http://192.168.2.121:8000")
 
     DEV_BYPASS_LOGIN = os.getenv("DEV_BYPASS_LOGIN", "0") == "1"
     if DEV_BYPASS_LOGIN:

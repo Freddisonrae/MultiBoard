@@ -7,7 +7,6 @@ from sqlalchemy.orm import Session
 from typing import List
 import json
 import sys
-
 sys.path.append('..')
 
 from ..database import get_db
@@ -24,26 +23,36 @@ async def get_available_rooms(
         db: Session = Depends(get_db)
 ):
     """Verfügbare Räume für Schüler abrufen"""
-    if current_user.role == "teacher":
-        # Lehrer sehen alle ihre Räume
+
+    # 🔥 NEU: Admin sieht ALLE Räume
+    if current_user.role == "admin":
+        rooms = db.query(models.Room).all()
+        print(f"📋 Admin sieht alle Räume: {len(rooms)} gefunden")
+        return rooms
+
+    # Lehrer sehen alle ihre Räume
+    elif current_user.role == "teacher":
         rooms = db.query(models.Room).filter(
             models.Room.teacher_id == current_user.id
         ).all()
+        print(f"📋 Lehrer sieht eigene Räume: {len(rooms)} gefunden")
+        return rooms
+
+    # Schüler sehen nur zugewiesene, aktive Räume
     else:
-        # Schüler sehen nur zugewiesene, aktive Räume
         rooms = db.query(models.Room).join(models.RoomAssignment).filter(
             models.RoomAssignment.student_id == current_user.id,
             models.Room.is_active == True
         ).all()
-
-    return rooms
+        print(f"📋 Schüler sieht zugewiesene Räume: {len(rooms)} gefunden")
+        return rooms
 
 
 @router.post("/start-session/{room_id}", response_model=GameSession)
 async def start_game_session(
-        room_id: int,
-        current_user: models.User = Depends(get_current_user),
-        db: Session = Depends(get_db)
+    room_id: int,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
 ):
     """Neue Spiel-Session starten"""
     # Prüfen ob Raum existiert und zugänglich ist
@@ -84,9 +93,9 @@ async def start_game_session(
 
 @router.get("/session/{session_id}/puzzles", response_model=List[Puzzle])
 async def get_session_puzzles(
-        session_id: int,
-        current_user: models.User = Depends(get_current_user),
-        db: Session = Depends(get_db)
+    session_id: int,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
 ):
     """Rätsel für eine Session abrufen"""
     # Session prüfen
@@ -108,9 +117,9 @@ async def get_session_puzzles(
 
 @router.post("/submit-answer", response_model=PuzzleResult)
 async def submit_answer(
-        result: PuzzleResultCreate,
-        current_user: models.User = Depends(get_current_user),
-        db: Session = Depends(get_db)
+    result: PuzzleResultCreate,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
 ):
     """Antwort einreichen und bewerten"""
     # Session prüfen
@@ -169,9 +178,9 @@ async def submit_answer(
 
 @router.get("/session/{session_id}/progress", response_model=RoomProgress)
 async def get_session_progress(
-        session_id: int,
-        current_user: models.User = Depends(get_current_user),
-        db: Session = Depends(get_db)
+    session_id: int,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
 ):
     """Fortschritt einer Session abrufen"""
     # Session prüfen
@@ -205,9 +214,9 @@ async def get_session_progress(
 
 @router.post("/session/{session_id}/complete")
 async def complete_session(
-        session_id: int,
-        current_user: models.User = Depends(get_current_user),
-        db: Session = Depends(get_db)
+    session_id: int,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(get_db)
 ):
     """Session als abgeschlossen markieren"""
     from datetime import datetime

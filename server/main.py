@@ -21,7 +21,7 @@ from server.database import get_db, init_db
 from server.auth import authenticate_user, create_access_token, get_password_hash, ACCESS_TOKEN_EXPIRE_MINUTES
 from server import models
 from shared.models import LoginRequest, TokenResponse, User, UserCreate
-from server.routes import admin, game, websocket
+from server.routes import admin, game, websocket, h5p
 
 # FastAPI App erstellen
 app = FastAPI(
@@ -46,10 +46,21 @@ if os.path.exists(STATIC_DIR):
 else:
     print("⚠️  Admin-Panel nicht gefunden (static/admin fehlt)")
 
+# H5P Content verfügbar machen
+H5P_CONTENT_DIR = os.path.join(os.path.dirname(__file__), "static", "h5p-content")
+if os.path.exists(H5P_CONTENT_DIR):
+    app.mount("/static/h5p-content", StaticFiles(directory=H5P_CONTENT_DIR), name="h5p_content")
+
+#H5P Standalone Player verfügbar machen
+H5P_STANDALONE_DIR = os.path.join(os.path.dirname(__file__), "static", "h5p-standalone")
+if os.path.exists(H5P_STANDALONE_DIR):
+    app.mount("/static/h5p-standalone", StaticFiles(directory=H5P_STANDALONE_DIR), name="h5p_standalone")
+
 # Routen registrieren
 app.include_router(admin.router)
 app.include_router(game.router)
 app.include_router(websocket.router)
+app.include_router(h5p.router)
 
 
 @app.on_event("startup")
@@ -159,7 +170,7 @@ if __name__ == "__main__":
 
     uvicorn.run(
         "main:app",
-        host="0.0.0.0",
+        host="192.168.2.162",
         port=8000,
         reload=True,
         log_level="info"
