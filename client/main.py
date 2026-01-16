@@ -1,8 +1,6 @@
 """
 Haupt-Einstiegspunkt der Desktop-App
 """
-from pathlib import Path
-import os
 import sys
 from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import Qt
@@ -19,23 +17,12 @@ def main():
     app.setApplicationName("MultiBoard")
 
     # High-DPI-Support für moderne Displays
-    ## app.setAttribute(Qt.AA_EnableHighDpiScaling)
+    app.setAttribute(Qt.AA_EnableHighDpiScaling)
 
     # API-Client erstellen
     # Server-URL anpassen falls nötig
-    api_client = APIClient(base_url="http://192.168.2.121:8000")
+    api_client = APIClient(base_url="http://localhost:8000")
 
-    DEV_BYPASS_LOGIN = os.getenv("DEV_BYPASS_LOGIN", "0") == "1"
-    if DEV_BYPASS_LOGIN:
-        api_client.user = {
-    "username": "admin",
-    "full_name": "Dev Admin",
-    "role": "admin",      # <- Admin-Rechte
-    "is_admin": True}
-        api_client.token = "DEV_TOKEN"
-        main_window = MainWindow(api_client)
-        main_window.show()
-        sys.exit(app.exec())
     # Login-Dialog anzeigen
     login_dialog = LoginDialog(api_client)
 

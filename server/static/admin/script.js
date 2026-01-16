@@ -35,10 +35,16 @@ function initApp() {
         createPuzzleBtn.addEventListener('click', showCreatePuzzleModal);
     }
 
-    // 🔥 NEU: H5P Upload Button
+    // H5P Upload Button
     const uploadH5pBtn = document.getElementById('upload-h5p-btn');
     if (uploadH5pBtn) {
         uploadH5pBtn.addEventListener('click', showH5PUploadModal);
+    }
+
+    // Schüler erstellen Button - FIXED
+    const createStudentBtn = document.getElementById('create-student-btn');
+    if (createStudentBtn) {
+        createStudentBtn.addEventListener('click', showCreateStudentModal);
     }
 
     const modalClose = document.getElementById('modal-close');
@@ -69,7 +75,6 @@ function initApp() {
     }
 }
 
-// [... Bestehende Login/Register/Tab-Funktionen bleiben gleich ...]
 // Tab-Umschalter für Login/Register
 function switchAuthMode(mode) {
     document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
@@ -360,7 +365,7 @@ function showCreateRoomModal() {
     });
 }
 
-// 🔥 NEU: H5P Upload Modal
+// H5P Upload Modal
 function showH5PUploadModal() {
     const roomId = document.getElementById('room-select').value;
     if (!roomId) {
@@ -459,7 +464,7 @@ async function handleH5PUpload(e) {
     }
 }
 
-// 🔥 NEU: H5P Vorschau anzeigen
+// H5P Vorschau anzeigen
 function showH5PPreview(contentId) {
     const overlay = document.getElementById('h5p-preview-overlay');
     const container = document.getElementById('h5p-preview-container');
@@ -655,8 +660,70 @@ function displayStudents(students) {
                 <h4>${student.full_name || student.username}</h4>
                 <p>Benutzername: ${student.username}</p>
             </div>
+            <div class="item-actions">
+                <button class="btn-danger" onclick="deleteStudent(${student.id})">Löschen</button>
+            </div>
         </div>
     `).join('');
+}
+
+// NEUE FUNKTION: Schüler erstellen Modal
+function showCreateStudentModal() {
+    showModal('Neuer Schüler', `
+        <form id="student-form">
+            <div class="form-group">
+                <label>Benutzername</label>
+                <input type="text" id="student-username" required minlength="3">
+                <small>Mindestens 3 Zeichen</small>
+            </div>
+            <div class="form-group">
+                <label>Vollständiger Name</label>
+                <input type="text" id="student-fullname" required>
+            </div>
+            <div class="form-group">
+                <label>Passwort</label>
+                <input type="password" id="student-password" required minlength="8">
+                <small>Mindestens 8 Zeichen</small>
+            </div>
+            <button type="submit" class="btn-primary">Schüler erstellen</button>
+        </form>
+    `);
+
+    document.getElementById('student-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const studentData = {
+            username: document.getElementById('student-username').value.trim(),
+            password: document.getElementById('student-password').value,
+            role: 'student',
+            full_name: document.getElementById('student-fullname').value.trim()
+        };
+
+        try {
+            await apiRequest('/api/auth/register', {
+                method: 'POST',
+                body: JSON.stringify(studentData)
+            });
+
+            closeModal();
+            loadStudents();
+            alert('Schüler erfolgreich erstellt!');
+        } catch (error) {
+            alert('Fehler beim Erstellen des Schülers');
+        }
+    });
+}
+
+// NEUE FUNKTION: Schüler löschen
+async function deleteStudent(studentId) {
+    if (!confirm('Schüler wirklich löschen?')) return;
+
+    try {
+        await apiRequest(`/api/admin/students/${studentId}`, { method: 'DELETE' });
+        loadStudents();
+    } catch (error) {
+        alert('Fehler beim Löschen');
+    }
 }
 
 function showModal(title, content) {

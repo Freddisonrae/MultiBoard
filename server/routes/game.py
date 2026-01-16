@@ -24,7 +24,15 @@ async def get_available_rooms(
 ):
     """Verfügbare Räume für Schüler abrufen"""
 
-    # 🔥 NEU: Admin sieht ALLE Räume
+    # 🔍 DEBUG: Alle Räume in DB anzeigen
+    all_rooms = db.query(models.Room).all()
+    print(f"🔍 DEBUG: Insgesamt {len(all_rooms)} Räume in Datenbank")
+    for room in all_rooms:
+        print(f"  - ID: {room.id}, Name: {room.name}, Teacher: {room.teacher_id}")
+
+    print(f"🔍 DEBUG: Current User: {current_user.username}, Role: {current_user.role}, ID: {current_user.id}")
+
+    # Admin sieht ALLE Räume
     if current_user.role == "admin":
         rooms = db.query(models.Room).all()
         print(f"📋 Admin sieht alle Räume: {len(rooms)} gefunden")
@@ -35,13 +43,12 @@ async def get_available_rooms(
         rooms = db.query(models.Room).filter(
             models.Room.teacher_id == current_user.id
         ).all()
-        print(f"📋 Lehrer sieht eigene Räume: {len(rooms)} gefunden")
+        print(f"📋 Lehrer (ID:{current_user.id}) sieht eigene Räume: {len(rooms)} gefunden")
         return rooms
 
     # Schüler sehen nur zugewiesene, aktive Räume
-    else:
-        rooms = db.query(models.Room).join(models.RoomAssignment).filter(
-            models.RoomAssignment.student_id == current_user.id,
+    elif current_user.role == "student":
+        rooms = db.query(models.Room).filter(
             models.Room.is_active == True
         ).all()
         print(f"📋 Schüler sieht zugewiesene Räume: {len(rooms)} gefunden")

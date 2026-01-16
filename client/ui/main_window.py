@@ -1,22 +1,13 @@
 """
 Hauptfenster der Desktop-App
 """
-from PySide6.QtWidgets import QFileDialog
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QPushButton, QScrollArea, QMessageBox
 )
-from PySide6.QtCore import Qt, QTimer, Signal, QObject
+from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont
 from .game_widget import GameWidget
-
-
-class WebSocketSignalBridge(QObject):
-    """
-    Bridge zwischen WebSocket-Thread und Qt Main-Thread
-    WICHTIG: Qt GUI kann nur vom Main-Thread aktualisiert werden!
-    """
-    rooms_updated = Signal(list)  # Signal für Raum-Updates
 
 
 class MainWindow(QMainWindow):
@@ -26,70 +17,19 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.api_client = api_client
         self.current_session = None
-        self.auto_refresh_enabled = True
 
         self.setWindowTitle("School Puzzle Game")
         self.setMinimumSize(1024, 768)
 
-        # 🔥 NEU: WebSocket Signal-Bridge erstellen
-        self.ws_bridge = WebSocketSignalBridge()
-        self.ws_bridge.rooms_updated.connect(self.on_rooms_updated_from_websocket)
+        # Vollbild für Smartboards
+        # self.showFullScreen()
 
         self.init_ui()
         self.load_rooms()
 
-        # 🔥 NEU: WebSocket verbinden (NACH init_ui!)
-        self.connect_websocket()
-
-        # Auto-Refresh Timer (als Fallback falls WebSocket ausfällt)
-        self.refresh_timer = QTimer(self)
-        self.refresh_timer.timeout.connect(self.auto_refresh)
-        self.refresh_timer.start(30000)  # alle 30 Sekunden (langsamer, da WebSocket aktiv)
-
-    def connect_websocket(self):
-        """WebSocket-Verbindung für Live-Updates starten"""
-        try:
-            # Callback-Funktion für WebSocket
-            def on_ws_rooms_updated(rooms):
-                """
-                Wird vom WebSocket-Thread aufgerufen
-                WICHTIG: Kann nicht direkt GUI updaten!
-                """
-                # Signal emittieren -> landet im Main-Thread
-                self.ws_bridge.rooms_updated.emit(rooms)
-
-            # WebSocket starten
-            self.api_client.connect_websocket(on_ws_rooms_updated)
-            print("✅ WebSocket-Verbindung wird aufgebaut...")
-
-        except Exception as e:
-            print(f"⚠️ WebSocket-Fehler: {e}")
-            print("Fallback: Verwende Timer-basiertes Polling")
-
-    def on_rooms_updated_from_websocket(self, rooms):
-        """
-        Wird aufgerufen wenn WebSocket meldet: "Räume haben sich geändert"
-        Läuft im Main-Thread -> kann GUI aktualisieren!
-        """
-        print(f"🔄 WebSocket-Update empfangen: {len(rooms)} Räume")
-
-        # Visuelles Feedback: Refresh-Button kurz animieren
-        if hasattr(self, 'refresh_button'):
-            original_text = self.refresh_button.text()
-            self.refresh_button.setText("✨")
-            QTimer.singleShot(500, lambda: self.refresh_button.setText(original_text))
-
-        # GUI aktualisieren
-        self.load_rooms()
-
-    def auto_refresh(self):
-        """Automatisches Aktualisieren (Fallback wenn WebSocket nicht funktioniert)"""
-        if self.auto_refresh_enabled:
-            print("⏰ Timer-basierter Refresh (Fallback)")
-            self.load_rooms()
-
     def init_ui(self):
         """UI initialisieren"""
+        # Zentrales Widget
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
 
@@ -127,53 +67,6 @@ class MainWindow(QMainWindow):
         """)
         header_layout.addWidget(user_label)
 
-        # 🔥 WebSocket-Status-Indikator
-        self.ws_status_label = QLabel("●")
-        self.ws_status_label.setStyleSheet("""
-            color: #95a5a6;
-            font-size: 24px;
-        """)
-        self.ws_status_label.setToolTip("WebSocket: Verbindung wird aufgebaut...")
-        header_layout.addWidget(self.ws_status_label)
-
-        # Timer um Status zu checken
-        self.ws_status_timer = QTimer(self)
-        self.ws_status_timer.timeout.connect(self.update_ws_status)
-        self.ws_status_timer.start(2000)  # alle 2 Sekunden Status prüfen
-
-        # Refresh-Button hinzufügen
-        self.refresh_button = QPushButton("🔄")
-        self.refresh_button.setStyleSheet("""
-            QPushButton {
-                background-color: rgba(255, 255, 255, 0.2);
-                color: white;
-                font-size: 18px;
-                border-radius: 8px;
-                padding: 8px 12px;
-            }
-            QPushButton:hover {
-                background-color: rgba(255, 255, 255, 0.3);
-            }
-        """)
-        self.refresh_button.clicked.connect(self.manual_refresh)
-        self.refresh_button.setToolTip("Raumliste aktualisieren")
-        header_layout.addWidget(self.refresh_button)
-
-        # Admin-Button nur für Admin
-        if self.api_client.user.get("username") == "admin":
-            admin_btn = QPushButton("Admin Bereich")
-            admin_btn.setStyleSheet("""
-                QPushButton {
-                    background-color: white;
-                    color: #27ae60;
-                    font-weight: bold;
-                    border-radius: 8px;
-                    padding: 10px 20px;
-                }
-            """)
-            admin_btn.clicked.connect(self.open_admin_panel)
-            header_layout.addWidget(admin_btn)
-
         logout_btn = QPushButton("Abmelden")
         logout_btn.setStyleSheet("""
             QPushButton {
@@ -193,42 +86,20 @@ class MainWindow(QMainWindow):
         header.setLayout(header_layout)
         main_layout.addWidget(header)
 
-        # Content
+        # Content-Container
         self.content_container = QWidget()
         content_layout = QVBoxLayout()
         content_layout.setContentsMargins(30, 30, 30, 30)
+
         self.content_container.setLayout(content_layout)
         main_layout.addWidget(self.content_container)
 
         central_widget.setLayout(main_layout)
 
-    def update_ws_status(self):
-        """WebSocket-Status visuell anzeigen"""
-        if hasattr(self.api_client, '_ws_connected') and self.api_client._ws_connected:
-            self.ws_status_label.setStyleSheet("color: #2ecc71; font-size: 24px;")
-            self.ws_status_label.setToolTip("WebSocket: Verbunden ✓ (Live-Updates aktiv)")
-        else:
-            self.ws_status_label.setStyleSheet("color: #e74c3c; font-size: 24px;")
-            self.ws_status_label.setToolTip("WebSocket: Nicht verbunden (Timer-Fallback aktiv)")
-
-    def manual_refresh(self):
-        """Manuelles Aktualisieren mit visuellem Feedback"""
-        self.refresh_button.setEnabled(False)
-        self.refresh_button.setText("⏳")
-
-        self.load_rooms()
-
-        # Button nach kurzer Zeit wieder aktivieren
-        QTimer.singleShot(1000, lambda: (
-            self.refresh_button.setEnabled(True),
-            self.refresh_button.setText("🔄")
-        ))
-
     def load_rooms(self):
-        """Lädt Räume"""
+        """Lädt verfügbare Räume"""
+        # Content leeren
         layout = self.content_container.layout()
-
-        # UI leeren
         while layout.count():
             child = layout.takeAt(0)
             if child.widget():
@@ -244,12 +115,7 @@ class MainWindow(QMainWindow):
         """)
         layout.addWidget(title)
 
-        # JSON-Upload-Button
-        load_btn = QPushButton("📄 Quiz-JSON laden")
-        load_btn.clicked.connect(self.load_quiz_json)
-        layout.addWidget(load_btn)
-
-        # Räume laden (online + offline kommen bereits aus dem Client)
+        # Räume laden
         rooms = self.api_client.get_available_rooms()
 
         if not rooms:
@@ -264,15 +130,20 @@ class MainWindow(QMainWindow):
             layout.addStretch()
             return
 
-        # Scroll-Bereich für Räume
+        # Scroll-Area für Räume
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
-        scroll.setStyleSheet("QScrollArea { border: none; }")
+        scroll.setStyleSheet("""
+            QScrollArea {
+                border: none;
+            }
+        """)
 
         rooms_widget = QWidget()
         rooms_layout = QVBoxLayout()
         rooms_layout.setSpacing(15)
 
+        # Raum-Karten erstellen
         for room in rooms:
             card = self.create_room_card(room)
             rooms_layout.addWidget(card)
@@ -284,7 +155,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(scroll)
 
     def create_room_card(self, room):
-        """Raumkarte erstellen"""
+        """Erstellt Raum-Karte"""
         card = QWidget()
         card.setStyleSheet("""
             QWidget {
@@ -346,97 +217,71 @@ class MainWindow(QMainWindow):
                 padding: 15px 30px;
                 min-width: 150px;
             }
+            QPushButton:hover {
+                background: qlineargradient(
+                    x1:0, y1:0, x2:1, y2:0,
+                    stop:0 #5568d3, stop:1 #6941a1
+                );
+            }
         """)
         start_btn.clicked.connect(lambda: self.start_room(room))
         layout.addWidget(start_btn)
-
-        # Rätsel bearbeiten Button für Admin
-        if self.api_client.user.get("username") == "admin":
-            edit_btn = QPushButton("Rätsel bearbeiten")
-            edit_btn.setStyleSheet("""
-                QPushButton {
-                    background-color: #27ae60;
-                    color: white;
-                    font-weight: bold;
-                    padding: 10px 20px;
-                    border-radius: 8px;
-                }
-            """)
-            edit_btn.clicked.connect(lambda _, r=room: self.open_puzzle_editor(r))
-            layout.addWidget(edit_btn)
 
         card.setLayout(layout)
         return card
 
     def start_room(self, room):
-        """Raum starten"""
+        """Startet Raum"""
+        # Session starten
         session = self.api_client.start_session(room["id"])
 
         if not session:
-            QMessageBox.critical(self, "Fehler", "Raum konnte nicht gestartet werden.")
+            QMessageBox.critical(
+                self,
+                "Fehler",
+                "Raum konnte nicht gestartet werden."
+            )
             return
 
         self.current_session = session
+
+        # Rätsel laden
         puzzles = self.api_client.get_session_puzzles(session["id"])
 
         if not puzzles:
-            QMessageBox.warning(self, "Keine Rätsel", "Dieser Raum enthält noch keine Rätsel.")
+            QMessageBox.warning(
+                self,
+                "Keine Rätsel",
+                "Dieser Raum enthält noch keine Rätsel."
+            )
             return
 
+        # Zum Spiel wechseln
         self.show_game(session, puzzles)
 
     def show_game(self, session, puzzles):
-        """Spiel anzeigen"""
+        """Zeigt Spiel an"""
+        # Content leeren
         layout = self.content_container.layout()
         while layout.count():
             child = layout.takeAt(0)
             if child.widget():
                 child.widget().deleteLater()
 
+        # Game-Widget erstellen
         game_widget = GameWidget(self.api_client, session, puzzles, self)
         game_widget.session_completed.connect(self.load_rooms)
+
         layout.addWidget(game_widget)
 
     def handle_logout(self):
-        reply = QMessageBox.question(self, "Abmelden", "Möchten Sie sich wirklich abmelden?",
-                                     QMessageBox.Yes | QMessageBox.No)
+        """Abmelden"""
+        reply = QMessageBox.question(
+            self,
+            "Abmelden",
+            "Möchten Sie sich wirklich abmelden?",
+            QMessageBox.Yes | QMessageBox.No
+        )
 
         if reply == QMessageBox.Yes:
-            # 🔥 WebSocket sauber schließen
-            self.api_client.disconnect_websocket()
             self.close()
-
-    def closeEvent(self, event):
-        """Beim Schließen des Fensters aufräumen"""
-        # 🔥 WebSocket-Verbindung schließen
-        self.api_client.disconnect_websocket()
-        event.accept()
-
-    def open_admin_panel(self):
-        from .admin_room_dialog import AdminRoomDialog
-        dialog = AdminRoomDialog(self.api_client, self)
-
-        if dialog.exec():
-            # Sofort aktualisieren nach Raumerstellung
-            self.load_rooms()
-
-    def open_puzzle_editor(self, room):
-        from .admin_puzzle_dialog import AdminPuzzleDialog
-        dialog = AdminPuzzleDialog(self.api_client, room["id"], self)
-        dialog.exec()
-
-    def load_quiz_json(self):
-        path, _ = QFileDialog.getOpenFileName(
-            self,
-            "Quiz JSON auswählen",
-            "",
-            "JSON Dateien (*.json)"
-        )
-        if not path:
-            return
-
-        try:
-            self.api_client.load_quiz_json_file(path)
-            self.load_rooms()  # refresh
-        except Exception as e:
-            QMessageBox.critical(self, "Fehler", f"JSON konnte nicht geladen werden:\n{e}")
