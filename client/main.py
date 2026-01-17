@@ -21,7 +21,7 @@ def main():
 
     # API-Client erstellen
     # Server-URL anpassen falls nötig
-    api_client = APIClient(base_url="http://localhost:8000")
+    api_client = APIClient(base_url="http://127.0.0.1:8000")
 
     # Login-Dialog anzeigen
     login_dialog = LoginDialog(api_client)
