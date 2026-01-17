@@ -1,5 +1,6 @@
 """
 H5P Upload und Verwaltung - FastAPI Routes
+FIXED: Verwendet absolute Pfade
 """
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status
 from sqlalchemy.orm import Session
@@ -16,9 +17,15 @@ from server.auth import get_current_user
 
 router = APIRouter(prefix="/api/admin/h5p", tags=["h5p"])
 
-# Basis-Verzeichnis für H5P-Content
-H5P_CONTENT_DIR = Path("server/static/h5p-content")
+# 🔥 FIX: Absoluter Pfad - findet immer das richtige Verzeichnis
+SCRIPT_DIR = Path(__file__).resolve().parent.parent  # server/routes/h5p.py -> server/
+H5P_CONTENT_DIR = SCRIPT_DIR / "static" / "h5p-content"
 H5P_CONTENT_DIR.mkdir(parents=True, exist_ok=True)
+
+# Debug-Output beim Import
+print(f"📁 H5P Routes geladen")
+print(f"   Script Dir: {SCRIPT_DIR}")
+print(f"   Content Dir: {H5P_CONTENT_DIR.absolute()}")
 
 
 @router.post("/upload")
@@ -62,23 +69,42 @@ async def upload_h5p(
             detail="Nur .h5p Dateien sind erlaubt"
         )
 
+    # Eindeutige ID für diesen Content generieren
+    content_id = str(uuid.uuid4())
+    content_path = H5P_CONTENT_DIR / content_id
+
+    print(f"📤 H5P Upload gestartet:")
+    print(f"   Datei: {file.filename}")
+    print(f"   Content ID: {content_id}")
+    print(f"   Ziel-Pfad: {content_path.absolute()}")
+
     try:
-        # Eindeutige ID für diesen Content generieren
-        content_id = str(uuid.uuid4())
-        content_path = H5P_CONTENT_DIR / content_id
+        # Verzeichnis erstellen
         content_path.mkdir(parents=True, exist_ok=True)
 
         # Temporäre .h5p Datei speichern
         temp_h5p = content_path / "temp.h5p"
         with open(temp_h5p, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
+            content = await file.read()
+            buffer.write(content)
+
+        print(f"   ✅ Datei gespeichert: {temp_h5p.absolute()}")
+        print(f"   Größe: {len(content)} bytes")
 
         # .h5p entpacken (ist ein ZIP)
         with zipfile.ZipFile(temp_h5p, 'r') as zip_ref:
             zip_ref.extractall(content_path)
 
+        print(f"   ✅ Entpackt nach: {content_path.absolute()}")
+
         # Temp-Datei löschen
         temp_h5p.unlink()
+
+        # Entpackte Dateien auflisten (Debug)
+        extracted_files = list(content_path.rglob('*'))
+        print(f"   📂 Entpackte Dateien ({len(extracted_files)}):")
+        for f in extracted_files[:10]:  # Nur erste 10 zeigen
+            print(f"      - {f.relative_to(content_path)}")
 
         # h5p.json lesen für Metadaten
         h5p_json_path = content_path / "h5p.json"
@@ -90,6 +116,8 @@ async def upload_h5p(
 
         with open(h5p_json_path, 'r', encoding='utf-8') as f:
             h5p_metadata = json.load(f)
+
+        print(f"   ✅ h5p.json gelesen: {h5p_metadata.get('title', 'Unbenannt')}")
 
         # content.json lesen für die eigentlichen Inhalte
         content_json_path = content_path / "content" / "content.json"
@@ -132,29 +160,40 @@ async def upload_h5p(
         db.commit()
         db.refresh(puzzle)
 
+        print(f"   ✅ Puzzle erstellt: ID={puzzle.id}, Typ={puzzle_type}")
+        print(f"   ✅ Upload abgeschlossen!\n")
+
         return {
             "success": True,
             "puzzle_id": puzzle.id,
             "content_id": content_id,
             "content_path": f"/static/h5p-content/{content_id}",
             "title": title,
-            "type": puzzle_type
+            "type": puzzle_type,
+            "absolute_path": str(content_path.absolute())  # Debug
         }
 
     except zipfile.BadZipFile:
+        # Cleanup
+        if content_path.exists():
+            shutil.rmtree(content_path)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Datei ist kein gültiges ZIP-Archiv"
         )
-    except json.JSONDecodeError:
+    except json.JSONDecodeError as e:
+        # Cleanup
+        if content_path.exists():
+            shutil.rmtree(content_path)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="H5P-JSON konnte nicht gelesen werden"
+            detail=f"H5P-JSON konnte nicht gelesen werden: {str(e)}"
         )
     except Exception as e:
         # Cleanup bei Fehler
         if content_path.exists():
             shutil.rmtree(content_path)
+        print(f"   ❌ Fehler: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Fehler beim Verarbeiten der H5P-Datei: {str(e)}"
@@ -235,9 +274,30 @@ async def delete_h5p_content(
         content_path = H5P_CONTENT_DIR / puzzle.h5p_content_id
         if content_path.exists():
             shutil.rmtree(content_path)
+            print(f"   🗑️ H5P Content gelöscht: {content_path.absolute()}")
 
     # Puzzle aus DB löschen
     db.delete(puzzle)
     db.commit()
 
     return {"success": True, "message": "H5P-Content gelöscht"}
+
+
+@router.get("/debug/path")
+async def debug_path_info():
+    """
+    Debug-Endpunkt: Zeigt Pfad-Informationen
+    """
+    return {
+        "script_dir": str(SCRIPT_DIR.absolute()),
+        "h5p_content_dir": str(H5P_CONTENT_DIR.absolute()),
+        "h5p_content_exists": H5P_CONTENT_DIR.exists(),
+        "uploaded_content": [
+            {
+                "id": d.name,
+                "path": str(d.absolute()),
+                "files": len(list(d.rglob('*')))
+            }
+            for d in H5P_CONTENT_DIR.iterdir() if d.is_dir()
+        ] if H5P_CONTENT_DIR.exists() else []
+    }

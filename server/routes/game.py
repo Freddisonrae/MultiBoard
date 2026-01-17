@@ -46,7 +46,7 @@ async def get_available_rooms(
         print(f"📋 Lehrer (ID:{current_user.id}) sieht eigene Räume: {len(rooms)} gefunden")
         return rooms
 
-    # Schüler sehen nur zugewiesene, aktive Räume
+
     elif current_user.role == "student":
         rooms = db.query(models.Room).filter(
             models.Room.is_active == True

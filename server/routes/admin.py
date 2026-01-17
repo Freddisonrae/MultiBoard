@@ -1,28 +1,25 @@
-
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
 import json
 import sys
 
 sys.path.append('..')
-
 from ..database import get_db
 from ..auth import get_current_teacher
 from .. import models
 from shared.models import Room, RoomCreate, Puzzle, PuzzleCreate, User
-
-# 🔥 NEU: WebSocket Manager importieren
 from .websocket import manager
-
-router = APIRouter(prefix="/api/admin", tags=["admin"])
-
 from pydantic import BaseModel
 from typing import Optional, Dict, Any
 from datetime import datetime
+from pathlib import Path
+import shutil
+
+router = APIRouter(prefix="/api/admin", tags=["admin"])
 
 
-# Eigenes Response-Model für Puzzle, um den Fehler beim Erstellen eines Fehler zu verhindern
+# Eigenes Response-Model für Puzzle, um den Fehler beim Erstellen zu verhindern
 class PuzzleResponse(BaseModel):
     id: int
     room_id: int
@@ -38,6 +35,8 @@ class PuzzleResponse(BaseModel):
     class Config:
         from_attributes = True
 
+
+# ==================== ROOMS ====================
 
 @router.get("/rooms", response_model=List[Room])
 async def get_rooms(
@@ -66,7 +65,7 @@ async def create_room(
     db.commit()
     db.refresh(db_room)
 
-    # 🔥 NEU: WebSocket Broadcast an alle Clients
+    # WebSocket Broadcast an alle Clients
     await manager.broadcast({
         "type": "rooms_updated",
         "action": "room_created",
@@ -100,7 +99,7 @@ async def update_room(
     db.commit()
     db.refresh(db_room)
 
-    # 🔥 NEU: Broadcast bei Update
+    # Broadcast bei Update
     await manager.broadcast({
         "type": "rooms_updated",
         "action": "room_updated",
@@ -128,7 +127,7 @@ async def delete_room(
     db.delete(db_room)
     db.commit()
 
-    # 🔥 NEU: Broadcast bei Löschen
+    # Broadcast bei Löschen
     await manager.broadcast({
         "type": "rooms_updated",
         "action": "room_deleted",
@@ -156,7 +155,7 @@ async def activate_room(
     db_room.is_active = not db_room.is_active
     db.commit()
 
-    # 🔥 NEU: Broadcast bei Aktivierung
+    # Broadcast bei Aktivierung
     await manager.broadcast({
         "type": "rooms_updated",
         "action": "room_activated" if db_room.is_active else "room_deactivated",
@@ -166,11 +165,13 @@ async def activate_room(
     return {"is_active": db_room.is_active}
 
 
+# ==================== PUZZLES ====================
+
 @router.get("/rooms/{room_id}/puzzles", response_model=List[PuzzleResponse])
 async def get_puzzles(
-    room_id: int,
-    current_user: models.User = Depends(get_current_teacher),
-    db: Session = Depends(get_db)
+        room_id: int,
+        current_user: models.User = Depends(get_current_teacher),
+        db: Session = Depends(get_db)
 ):
     """Rätsel eines Raums abrufen"""
     # Prüfen ob Raum dem Lehrer gehört
@@ -191,9 +192,9 @@ async def get_puzzles(
 
 @router.post("/puzzles", response_model=PuzzleResponse)
 async def create_puzzle(
-    puzzle: PuzzleCreate,
-    current_user: models.User = Depends(get_current_teacher),
-    db: Session = Depends(get_db)
+        puzzle: PuzzleCreate,
+        current_user: models.User = Depends(get_current_teacher),
+        db: Session = Depends(get_db)
 ):
     """Neues Rätsel erstellen"""
     # Prüfen ob Raum dem Lehrer gehört
@@ -206,7 +207,6 @@ async def create_puzzle(
         raise HTTPException(status_code=404, detail="Raum nicht gefunden")
 
     # WICHTIG: h5p_json muss als STRING gespeichert werden
-    import json
     h5p_json_str = json.dumps(puzzle.h5p_json) if puzzle.h5p_json else None
 
     db_puzzle = models.Puzzle(
@@ -224,8 +224,7 @@ async def create_puzzle(
     db.commit()
     db.refresh(db_puzzle)
 
-    # 🔥 NEU: Broadcast bei Puzzle-Erstellung
-    # (optional - wenn du willst dass Puzzles auch Updates triggern)
+    # Broadcast bei Puzzle-Erstellung
     await manager.broadcast({
         "type": "rooms_updated",
         "action": "puzzle_added",
@@ -262,22 +261,65 @@ async def update_puzzle(
 @router.delete("/puzzles/{puzzle_id}")
 async def delete_puzzle(
         puzzle_id: int,
-        current_user: models.User = Depends(get_current_teacher),
-        db: Session = Depends(get_db)
+        db: Session = Depends(get_db),
+        current_user: models.User = Depends(get_current_teacher)
 ):
-    """Rätsel löschen"""
-    db_puzzle = db.query(models.Puzzle).join(models.Room).filter(
-        models.Puzzle.id == puzzle_id,
-        models.Room.teacher_id == current_user.id
+    """
+    Rätsel löschen (funktioniert für normale UND H5P-Rätsel)
+    """
+
+    # Puzzle holen
+    puzzle = db.query(models.Puzzle).filter(
+        models.Puzzle.id == puzzle_id
     ).first()
 
-    if not db_puzzle:
-        raise HTTPException(status_code=404, detail="Rätsel nicht gefunden")
+    if not puzzle:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Puzzle nicht gefunden"
+        )
 
-    db.delete(db_puzzle)
+    # Berechtigung prüfen - Raum muss dem Lehrer gehören
+    if puzzle.room.teacher_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Keine Berechtigung für diesen Raum"
+        )
+
+    # 🔥 WICHTIG: Wenn H5P-Rätsel, dann auch Content-Dateien löschen
+    if puzzle.h5p_content_id:
+        try:
+            # H5P Content-Verzeichnis löschen
+            SCRIPT_DIR = Path(__file__).resolve().parent.parent
+            H5P_CONTENT_DIR = SCRIPT_DIR / "static" / "h5p-content"
+            content_path = H5P_CONTENT_DIR / puzzle.h5p_content_id
+
+            if content_path.exists():
+                shutil.rmtree(content_path)
+                print(f"   🗑️ H5P Content gelöscht: {content_path}")
+        except Exception as e:
+            print(f"   ⚠️ Fehler beim Löschen von H5P Content: {e}")
+            # Trotzdem weitermachen und Puzzle aus DB löschen
+
+    # Puzzle aus Datenbank löschen
+    db.delete(puzzle)
     db.commit()
-    return {"message": "Rätsel gelöscht"}
 
+    # Broadcast
+    await manager.broadcast({
+        "type": "rooms_updated",
+        "action": "puzzle_deleted",
+        "room_id": puzzle.room_id
+    })
+
+    return {
+        "success": True,
+        "message": "Rätsel erfolgreich gelöscht",
+        "was_h5p": puzzle.h5p_content_id is not None
+    }
+
+
+# ==================== STUDENTS ====================
 
 @router.post("/rooms/{room_id}/assign-student")
 async def assign_student_to_room(
@@ -318,7 +360,7 @@ async def assign_student_to_room(
     db.add(assignment)
     db.commit()
 
-    # 🔥 NEU: Broadcast bei Student-Zuweisung
+    # Broadcast bei Student-Zuweisung
     await manager.broadcast({
         "type": "rooms_updated",
         "action": "student_assigned",
@@ -339,10 +381,13 @@ async def get_students(
     ).all()
     return students
 
+
+# ==================== TEACHERS ====================
+
 @router.get("/teachers", response_model=List[User])
 async def get_teachers(
-    current_user: models.User = Depends(get_current_teacher),
-    db: Session = Depends(get_db)
+        current_user: models.User = Depends(get_current_teacher),
+        db: Session = Depends(get_db)
 ):
     """Alle Lehrer abrufen (nur für Lehrer)"""
     teachers = db.query(models.User).filter(
@@ -359,7 +404,7 @@ async def get_pending_teachers(
     """Wartende Lehrer-Registrierungen"""
     # Nur freigeschaltete Lehrer dürfen das
     if not current_user.is_approved:
-        raise HTTPException(403, "Keine Berechtigung")
+        raise HTTPException(status_code=403, detail="Keine Berechtigung")
 
     pending = db.query(models.User).filter(
         models.User.role == 'teacher',
@@ -378,7 +423,7 @@ async def approve_teacher(
 ):
     """Lehrer freischalten oder ablehnen"""
     if not current_user.is_approved:
-        raise HTTPException(403, "Keine Berechtigung")
+        raise HTTPException(status_code=403, detail="Keine Berechtigung")
 
     teacher = db.query(models.User).filter(
         models.User.id == teacher_id,
@@ -386,7 +431,7 @@ async def approve_teacher(
     ).first()
 
     if not teacher:
-        raise HTTPException(404, "Lehrer nicht gefunden")
+        raise HTTPException(status_code=404, detail="Lehrer nicht gefunden")
 
     if approve:
         teacher.is_active = True
