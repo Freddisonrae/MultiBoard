@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from typing import List
 import json
 import sys
+
 sys.path.append('..')
 
 from ..database import get_db
@@ -22,15 +23,9 @@ async def get_available_rooms(
         current_user: models.User = Depends(get_current_user),
         db: Session = Depends(get_db)
 ):
-    """Verfügbare Räume für Schüler abrufen"""
+    """Verfügbare Räume für User abrufen"""
 
-    # 🔍 DEBUG: Alle Räume in DB anzeigen
-    all_rooms = db.query(models.Room).all()
-    print(f"🔍 DEBUG: Insgesamt {len(all_rooms)} Räume in Datenbank")
-    for room in all_rooms:
-        print(f"  - ID: {room.id}, Name: {room.name}, Teacher: {room.teacher_id}")
-
-    print(f"🔍 DEBUG: Current User: {current_user.username}, Role: {current_user.role}, ID: {current_user.id}")
+    print(f"🔍 User: {current_user.username}, Role: {current_user.role}, ID: {current_user.id}")
 
     # Admin sieht ALLE Räume
     if current_user.role == "admin":
@@ -43,39 +38,45 @@ async def get_available_rooms(
         rooms = db.query(models.Room).filter(
             models.Room.teacher_id == current_user.id
         ).all()
-        print(f"📋 Lehrer (ID:{current_user.id}) sieht eigene Räume: {len(rooms)} gefunden")
+        print(f"📋 Lehrer sieht eigene Räume: {len(rooms)} gefunden")
         return rooms
 
-
+    # 🔥 GEÄNDERT: Schüler sehen ALLE AKTIVEN Räume (nicht nur zugewiesene)
     elif current_user.role == "student":
         rooms = db.query(models.Room).filter(
             models.Room.is_active == True
         ).all()
-        print(f"📋 Schüler sieht zugewiesene Räume: {len(rooms)} gefunden")
+        print(f"📋 Schüler sieht ALLE aktiven Räume: {len(rooms)} gefunden")
+        for room in rooms:
+            print(f"   - {room.name} (ID: {room.id})")
         return rooms
+
+    # Fallback
+    return []
 
 
 @router.post("/start-session/{room_id}", response_model=GameSession)
 async def start_game_session(
-    room_id: int,
-    current_user: models.User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+        room_id: int,
+        current_user: models.User = Depends(get_current_user),
+        db: Session = Depends(get_db)
 ):
     """Neue Spiel-Session starten"""
-    # Prüfen ob Raum existiert und zugänglich ist
+
+    print(f"🎮 Session-Start: User={current_user.username}, Role={current_user.role}, Room={room_id}")
+
+    # Raum muss existieren
     room = db.query(models.Room).filter(models.Room.id == room_id).first()
     if not room:
+        print(f"❌ Raum {room_id} nicht gefunden")
         raise HTTPException(status_code=404, detail="Raum nicht gefunden")
 
-    # Für Schüler: Prüfen ob zugewiesen
+    # 🔥 GEÄNDERT: Für Schüler nur prüfen ob Raum aktiv ist (KEINE Zuweisung mehr!)
     if current_user.role == "student":
-        assignment = db.query(models.RoomAssignment).filter(
-            models.RoomAssignment.room_id == room_id,
-            models.RoomAssignment.student_id == current_user.id
-        ).first()
-
-        if not assignment:
-            raise HTTPException(status_code=403, detail="Zugriff verweigert")
+        if not room.is_active:
+            print(f"❌ Raum {room_id} ist nicht aktiv")
+            raise HTTPException(status_code=403, detail="Raum ist nicht aktiv")
+        print(f"✅ Raum ist aktiv, Schüler darf beitreten")
 
     # Prüfen ob bereits aktive Session existiert
     existing_session = db.query(models.GameSession).filter(
@@ -85,6 +86,7 @@ async def start_game_session(
     ).first()
 
     if existing_session:
+        print(f"♻️ Bestehende Session gefunden: {existing_session.id}")
         return existing_session
 
     # Neue Session erstellen
@@ -95,16 +97,19 @@ async def start_game_session(
     db.add(session)
     db.commit()
     db.refresh(session)
+
+    print(f"✅ Neue Session erstellt: ID={session.id}")
     return session
 
 
 @router.get("/session/{session_id}/puzzles", response_model=List[Puzzle])
 async def get_session_puzzles(
-    session_id: int,
-    current_user: models.User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+        session_id: int,
+        current_user: models.User = Depends(get_current_user),
+        db: Session = Depends(get_db)
 ):
     """Rätsel für eine Session abrufen"""
+
     # Session prüfen
     session = db.query(models.GameSession).filter(
         models.GameSession.id == session_id,
@@ -119,16 +124,18 @@ async def get_session_puzzles(
         models.Puzzle.room_id == session.room_id
     ).order_by(models.Puzzle.order_index).all()
 
+    print(f"📝 {len(puzzles)} Rätsel für Session {session_id} geladen")
     return puzzles
 
 
 @router.post("/submit-answer", response_model=PuzzleResult)
 async def submit_answer(
-    result: PuzzleResultCreate,
-    current_user: models.User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+        result: PuzzleResultCreate,
+        current_user: models.User = Depends(get_current_user),
+        db: Session = Depends(get_db)
 ):
     """Antwort einreichen und bewerten"""
+
     # Session prüfen
     session = db.query(models.GameSession).filter(
         models.GameSession.id == result.session_id,
@@ -153,14 +160,18 @@ async def submit_answer(
     # H5P-JSON parsen
     h5p_data = json.loads(puzzle.h5p_json) if puzzle.h5p_json else {}
 
-    # Einfache Multiple-Choice-Bewertung
-    if puzzle.puzzle_type == "multiple_choice":
-        correct_index = h5p_data.get("correct", -1)
+    # Multiple-Choice-Bewertung (unterstützt verschiedene Formate)
+    if puzzle.puzzle_type in ["multiple_choice", "h5p_multichoice"]:
+        # Verschiedene JSON-Formate unterstützen
+        correct_index = h5p_data.get("correct", h5p_data.get("correct_index", -1))
         user_answer = result.answer_json.get("selected", -1)
-        is_correct = (correct_index == user_answer)
+
+        is_correct = (int(correct_index) == int(user_answer))
 
         if is_correct:
             points_earned = puzzle.points
+
+    print(f"📊 Antwort: Puzzle={puzzle.id}, Korrekt={is_correct}, Punkte={points_earned}")
 
     # Ergebnis speichern
     db_result = models.PuzzleResult(
@@ -185,11 +196,12 @@ async def submit_answer(
 
 @router.get("/session/{session_id}/progress", response_model=RoomProgress)
 async def get_session_progress(
-    session_id: int,
-    current_user: models.User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+        session_id: int,
+        current_user: models.User = Depends(get_current_user),
+        db: Session = Depends(get_db)
 ):
     """Fortschritt einer Session abrufen"""
+
     # Session prüfen
     session = db.query(models.GameSession).filter(
         models.GameSession.id == session_id,
@@ -221,9 +233,9 @@ async def get_session_progress(
 
 @router.post("/session/{session_id}/complete")
 async def complete_session(
-    session_id: int,
-    current_user: models.User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+        session_id: int,
+        current_user: models.User = Depends(get_current_user),
+        db: Session = Depends(get_db)
 ):
     """Session als abgeschlossen markieren"""
     from datetime import datetime
@@ -240,4 +252,7 @@ async def complete_session(
     session.completed_at = datetime.utcnow()
 
     db.commit()
+
+    print(f"✅ Session {session_id} abgeschlossen: {session.total_score} Punkte")
+
     return {"message": "Session abgeschlossen", "total_score": session.total_score}

@@ -1,19 +1,19 @@
 """
 Authentifizierung und Autorisierung
-JWT-Token-basiert
+JWT-Token-basiert - Unterstützt HTTPBearer UND Header-basiert
 """
 from datetime import datetime, timedelta
 from typing import Optional
 from jose import JWTError, jwt
 from passlib.context import CryptContext
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Header
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from .database import get_db
 from . import models
 
 # Sicherheits-Konfiguration
-SECRET_KEY = "dein-geheimer-schluessel-hier-aendern-in-produktion"  # In Produktion aus ENV laden!
+SECRET_KEY = "dein-geheimer-schluessel-hier-aendern-in-produktion"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 480  # 8 Stunden
 
@@ -54,34 +54,54 @@ def authenticate_user(db: Session, username: str, password: str):
     if not verify_password(password, user.password_hash):
         return None
 
-    # Keine Status-Prüfung mehr!
     return user
 
 
 async def get_current_user(
-        credentials: HTTPAuthorizationCredentials = Depends(security),
+        authorization: Optional[str] = Header(None),
         db: Session = Depends(get_db)
 ):
-    """Holt aktuellen Benutzer aus JWT Token"""
+    """
+    🔥 FIXED: Holt aktuellen Benutzer aus JWT Token
+    Unterstützt beide Token-Formate:
+    - Authorization: Bearer <token> (Admin-Panel)
+    - Authorization: <token> (Desktop-Client)
+    """
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Ungültige Authentifizierung",
         headers={"WWW-Authenticate": "Bearer"},
     )
 
+    if not authorization:
+        raise credentials_exception
+
+    # Token extrahieren
+    token = authorization
+    if authorization.startswith("Bearer "):
+        token = authorization.replace("Bearer ", "")
+
+    print(f"🔐 Auth-Token empfangen: {token[:20]}...")  # DEBUG
+
     try:
-        token = credentials.credentials
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        user_id: int = payload.get("sub")
+        user_id: str = payload.get("sub")
         if user_id is None:
             raise credentials_exception
-    except JWTError:
+
+        user_id = int(user_id)
+        print(f"✅ Token dekodiert: User-ID={user_id}")  # DEBUG
+
+    except JWTError as e:
+        print(f"❌ JWT-Fehler: {e}")  # DEBUG
         raise credentials_exception
 
     user = db.query(models.User).filter(models.User.id == user_id).first()
     if user is None:
+        print(f"❌ User mit ID {user_id} nicht gefunden")  # DEBUG
         raise credentials_exception
 
+    print(f"✅ User authentifiziert: {user.username} (Role: {user.role})")  # DEBUG
     return user
 
 

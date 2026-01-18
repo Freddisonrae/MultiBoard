@@ -49,7 +49,7 @@ class Room(RoomBase):
 class PuzzleBase(BaseModel):
     title: str
     h5p_content_id: Optional[str] = None
-    h5p_json: Optional[Dict[str, Any]] = None
+    h5p_json: Optional[str] = None  # 🔥 FIX: String statt Dict!
     puzzle_type: str = "multiple_choice"
     order_index: int = 0
     points: int = 10
@@ -58,13 +58,13 @@ class PuzzleBase(BaseModel):
 
 class PuzzleCreate(PuzzleBase):
     room_id: int
+    h5p_json: Optional[Dict[str, Any]] = None  # Beim Erstellen kann Dict übergeben werden
 
 
 class Puzzle(PuzzleBase):
     id: int
     room_id: int
     created_at: datetime
-
 
     class Config:
         from_attributes = True
