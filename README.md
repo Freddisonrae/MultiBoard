@@ -103,8 +103,7 @@ Multiboard eignet sich besonders für:
 
 ## Weiterentwicklung (Ideen)
 
-* Benutzer- und Rollenverwaltung (Lehrer / Schüler)
 * Statistiken & Fortschrittsanzeige
-* Webbasierte Admin-Oberfläche
 * Docker-Setup
 * Authentifizierung
+* Punkte / Belohnungssystem
