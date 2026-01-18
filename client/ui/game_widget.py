@@ -14,8 +14,9 @@ import time
 class GameWidget(QWidget):
     """Widget für Rätsel-Anzeige"""
 
-    puzzle_completed = Signal(dict)  # Sendet Ergebnis
+    puzzle_completed = Signal(dict)
     session_completed = Signal()
+    exit_requested = Signal()  # NEU: Signal für Exit
 
     def __init__(self, api_client, session, puzzles, parent=None):
         super().__init__(parent)
@@ -37,6 +38,26 @@ class GameWidget(QWidget):
 
         # Header mit Fortschritt
         header_layout = QHBoxLayout()
+
+        # NEU: Exit-Button links
+        self.exit_btn = QPushButton("← Zurück")
+        self.exit_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #e74c3c;
+                color: white;
+                font-size: 14px;
+                font-weight: bold;
+                border-radius: 8px;
+                padding: 10px 20px;
+            }
+            QPushButton:hover {
+                background-color: #c0392b;
+            }
+        """)
+        self.exit_btn.clicked.connect(self.confirm_exit)
+        header_layout.addWidget(self.exit_btn)
+
+        header_layout.addSpacing(20)
 
         self.progress_label = QLabel()
         self.progress_label.setStyleSheet("""
@@ -171,7 +192,21 @@ class GameWidget(QWidget):
         # Timer für Zeitmessung
         self.timer = QTimer()
         self.timer.timeout.connect(self.update_timer)
-        self.timer.start(1000)  # Jede Sekunde
+        self.timer.start(1000)
+
+    def confirm_exit(self):
+        """Bestätigung vor dem Verlassen"""
+        reply = QMessageBox.question(
+            self,
+            "Rätsel verlassen?",
+            "Möchtest du wirklich zurück zur Raumliste?\nDein Fortschritt geht verloren.",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No
+        )
+
+        if reply == QMessageBox.Yes:
+            self.timer.stop()
+            self.exit_requested.emit()
 
     def load_puzzle(self, index):
         """Lädt Rätsel"""

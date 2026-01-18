@@ -1,9 +1,9 @@
 """
-H5P Game Widget - FIXED für lokalen Server
+H5P Game Widget - Mit Puzzle-Auswahl vor dem Start
 """
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
-    QPushButton, QProgressBar, QMessageBox
+    QPushButton, QProgressBar, QMessageBox, QScrollArea, QFrame
 )
 from PySide6.QtCore import Qt, QTimer, Signal, QUrl, Slot, QObject
 from PySide6.QtWebEngineWidgets import QWebEngineView
@@ -29,54 +29,335 @@ class H5PBridge(QObject):
 
 
 class H5PGameWidget(QWidget):
-    """Widget für H5P-Rätsel mit WebView"""
+    """Widget für H5P-Rätsel mit Auswahlmenü"""
 
     puzzle_completed = Signal(dict)
     session_completed = Signal()
+    exit_requested = Signal()
 
     def __init__(self, api_client, session, puzzles, parent=None):
         super().__init__(parent)
         self.api_client = api_client
         self.session = session
         self.puzzles = puzzles
-        self.current_puzzle_index = 0
+        self.current_puzzle_index = -1  # -1 = Auswahlmenü
         self.start_time = 0
-        self.score = 0
+        self.completed_puzzles = set()  # Speichert welche Rätsel gelöst wurden
 
         # WebChannel für JavaScript-Bridge
         self.bridge = H5PBridge()
         self.bridge.answer_submitted.connect(self.handle_h5p_answer)
 
         self.init_ui()
-        self.load_puzzle(0)
+        self.show_puzzle_selection()
 
     def init_ui(self):
         """UI initialisieren"""
-        layout = QVBoxLayout()
-        layout.setSpacing(20)
-        layout.setContentsMargins(30, 30, 30, 30)
+        self.main_layout = QVBoxLayout()
+        self.main_layout.setSpacing(20)
+        self.main_layout.setContentsMargins(30, 30, 30, 30)
 
-        # Header mit Fortschritt
+        # Container für wechselnden Content (Auswahl oder Rätsel)
+        self.content_widget = QWidget()
+        self.content_layout = QVBoxLayout()
+        self.content_widget.setLayout(self.content_layout)
+
+        self.main_layout.addWidget(self.content_widget)
+        self.setLayout(self.main_layout)
+
+    def show_puzzle_selection(self):
+        """Zeigt Puzzle-Auswahlmenü"""
+        # Content leeren
+        while self.content_layout.count():
+            child = self.content_layout.takeAt(0)
+            if child.widget():
+                child.widget().deleteLater()
+
+        # Header
         header_layout = QHBoxLayout()
 
-        self.progress_label = QLabel()
-        self.progress_label.setStyleSheet("""
-            font-size: 16px;
-            font-weight: bold;
-            color: #667eea;
+        # NUR Zurück zur Raumliste Button (wenn im Auswahlmenü)
+        exit_btn = QPushButton("← Zurück zur Raumliste")
+        exit_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #e74c3c;
+                color: white;
+                font-size: 14px;
+                font-weight: bold;
+                border-radius: 8px;
+                padding: 10px 20px;
+            }
+            QPushButton:hover {
+                background-color: #c0392b;
+            }
         """)
-        header_layout.addWidget(self.progress_label)
+        exit_btn.clicked.connect(self.confirm_exit)
+        header_layout.addWidget(exit_btn)
 
         header_layout.addStretch()
 
-        self.score_label = QLabel("Punkte: 0")
-        self.score_label.setStyleSheet("""
-            font-size: 16px;
+        # Fortschrittsanzeige
+        completed_count = len(self.completed_puzzles)
+        total_count = len(self.puzzles)
+        progress_label = QLabel(f"Gelöst: {completed_count}/{total_count} Rätsel")
+        progress_label.setStyleSheet("""
+            font-size: 18px;
             font-weight: bold;
             color: #27ae60;
         """)
-        header_layout.addWidget(self.score_label)
+        header_layout.addWidget(progress_label)
 
+        self.content_layout.addLayout(header_layout)
+
+        # Titel
+        title = QLabel("🎯 Wähle ein Rätsel aus")
+        title.setAlignment(Qt.AlignCenter)
+        title.setStyleSheet("""
+            font-size: 28px;
+            font-weight: bold;
+            color: #667eea;
+            margin: 20px 0;
+        """)
+        self.content_layout.addWidget(title)
+
+        # Fortschrittsbalken
+        progress_bar = QProgressBar()
+        progress_bar.setMaximum(total_count)
+        progress_bar.setValue(completed_count)
+        progress_bar.setStyleSheet("""
+            QProgressBar {
+                border: 2px solid #e0e0e0;
+                border-radius: 8px;
+                text-align: center;
+                height: 30px;
+                font-size: 14px;
+                font-weight: bold;
+            }
+            QProgressBar::chunk {
+                background: qlineargradient(
+                    x1:0, y1:0, x2:1, y2:0,
+                    stop:0 #27ae60, stop:1 #2ecc71
+                );
+            }
+        """)
+        progress_bar.setFormat(f"{completed_count}/{total_count} Rätsel gelöst")
+        self.content_layout.addWidget(progress_bar)
+
+        self.content_layout.addSpacing(20)
+
+        # Scroll-Bereich für Rätsel-Karten
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setStyleSheet("QScrollArea { border: none; }")
+
+        puzzles_widget = QWidget()
+        puzzles_layout = QVBoxLayout()
+        puzzles_layout.setSpacing(15)
+
+        for i, puzzle in enumerate(self.puzzles):
+            card = self.create_puzzle_card(puzzle, i)
+            puzzles_layout.addWidget(card)
+
+        puzzles_layout.addStretch()
+        puzzles_widget.setLayout(puzzles_layout)
+        scroll.setWidget(puzzles_widget)
+
+        self.content_layout.addWidget(scroll)
+
+        # Prüfe ob alle Rätsel gelöst sind
+        if completed_count == total_count:
+            self.show_completion_message()
+
+    def create_puzzle_card(self, puzzle, index):
+        """Erstellt eine Rätsel-Karte"""
+        card = QFrame()
+        is_completed = index in self.completed_puzzles
+
+        if is_completed:
+            card.setStyleSheet("""
+                QFrame {
+                    background-color: #d4edda;
+                    border: 2px solid #28a745;
+                    border-radius: 10px;
+                    padding: 20px;
+                }
+            """)
+        else:
+            card.setStyleSheet("""
+                QFrame {
+                    background-color: white;
+                    border: 2px solid #e0e0e0;
+                    border-radius: 10px;
+                    padding: 20px;
+                }
+                QFrame:hover {
+                    border-color: #667eea;
+                    background-color: #f8f9ff;
+                }
+            """)
+
+        layout = QHBoxLayout()
+
+        # Info-Bereich
+        info_layout = QVBoxLayout()
+
+        title_layout = QHBoxLayout()
+
+        # Nummer
+        number_label = QLabel(f"#{index + 1}")
+        number_label.setStyleSheet("""
+            font-size: 24px;
+            font-weight: bold;
+            color: #667eea;
+            min-width: 50px;
+        """)
+        title_layout.addWidget(number_label)
+
+        # Titel
+        title_label = QLabel(puzzle.get("title", f"Rätsel {index + 1}"))
+        title_label.setStyleSheet("""
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+        """)
+        title_label.setWordWrap(True)
+        title_layout.addWidget(title_label, stretch=1)
+
+        info_layout.addLayout(title_layout)
+
+        # Beschreibung falls vorhanden
+        if puzzle.get("description"):
+            desc_label = QLabel(puzzle["description"])
+            desc_label.setWordWrap(True)
+            desc_label.setStyleSheet("""
+                font-size: 14px;
+                color: #666;
+                margin-top: 5px;
+            """)
+            info_layout.addWidget(desc_label)
+
+        # Typ-Info
+        puzzle_type = "H5P Interaktiv" if puzzle.get("h5p_content_id") else "Multiple Choice"
+        type_label = QLabel(f"📝 {puzzle_type}")
+        type_label.setStyleSheet("""
+            font-size: 12px;
+            color: #888;
+            margin-top: 10px;
+        """)
+        info_layout.addWidget(type_label)
+
+        layout.addLayout(info_layout, stretch=1)
+
+        # Button-Bereich
+        button_layout = QVBoxLayout()
+        button_layout.setAlignment(Qt.AlignCenter)
+
+        if is_completed:
+            status_label = QLabel("✅ Gelöst")
+            status_label.setStyleSheet("""
+                font-size: 16px;
+                font-weight: bold;
+                color: #28a745;
+            """)
+            button_layout.addWidget(status_label)
+
+            retry_btn = QPushButton("🔄 Nochmal spielen")
+            retry_btn.setStyleSheet("""
+                QPushButton {
+                    background-color: #17a2b8;
+                    color: white;
+                    font-size: 14px;
+                    font-weight: bold;
+                    border-radius: 8px;
+                    padding: 10px 20px;
+                }
+                QPushButton:hover {
+                    background-color: #138496;
+                }
+            """)
+            retry_btn.clicked.connect(lambda checked, idx=index: self.start_puzzle(idx))
+            button_layout.addWidget(retry_btn)
+        else:
+            start_btn = QPushButton("▶ Starten")
+            start_btn.setStyleSheet("""
+                QPushButton {
+                    background: qlineargradient(
+                        x1:0, y1:0, x2:1, y2:0,
+                        stop:0 #667eea, stop:1 #764ba2
+                    );
+                    color: white;
+                    font-size: 16px;
+                    font-weight: bold;
+                    border-radius: 8px;
+                    padding: 15px 30px;
+                    min-width: 120px;
+                }
+                QPushButton:hover {
+                    background: qlineargradient(
+                        x1:0, y1:0, x2:1, y2:0,
+                        stop:0 #5568d3, stop:1 #6941a1
+                    );
+                }
+            """)
+            start_btn.clicked.connect(lambda checked, idx=index: self.start_puzzle(idx))
+            button_layout.addWidget(start_btn)
+
+        layout.addLayout(button_layout)
+
+        card.setLayout(layout)
+        return card
+
+    def start_puzzle(self, index):
+        """Startet ein bestimmtes Rätsel"""
+        self.current_puzzle_index = index
+        self.show_puzzle_view()
+
+    def show_puzzle_view(self):
+        """Zeigt die Rätsel-Ansicht"""
+        # Content leeren
+        while self.content_layout.count():
+            child = self.content_layout.takeAt(0)
+            if child.widget():
+                child.widget().deleteLater()
+
+        puzzle = self.puzzles[self.current_puzzle_index]
+        self.start_time = time.time()
+
+        # Header
+        header_layout = QHBoxLayout()
+
+        # NUR Zurück zur Auswahl Button (wenn im Rätsel)
+        back_btn = QPushButton("← Zurück zur Auswahl")
+        back_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #f39c12;
+                color: white;
+                font-size: 14px;
+                font-weight: bold;
+                border-radius: 8px;
+                padding: 10px 20px;
+            }
+            QPushButton:hover {
+                background-color: #e67e22;
+            }
+        """)
+        back_btn.clicked.connect(self.show_puzzle_selection)
+        header_layout.addWidget(back_btn)
+
+        header_layout.addSpacing(20)
+
+        # Rätsel-Titel
+        title_label = QLabel(f"🎯 {puzzle.get('title', f'Rätsel #{self.current_puzzle_index + 1}')}")
+        title_label.setStyleSheet("""
+            font-size: 18px;
+            font-weight: bold;
+            color: #667eea;
+        """)
+        header_layout.addWidget(title_label)
+
+        header_layout.addStretch()
+
+        # Timer
         self.timer_label = QLabel("Zeit: 0s")
         self.timer_label.setStyleSheet("""
             font-size: 16px;
@@ -85,40 +366,21 @@ class H5PGameWidget(QWidget):
         """)
         header_layout.addWidget(self.timer_label)
 
-        layout.addLayout(header_layout)
-
-        # Fortschrittsbalken
-        self.progress_bar = QProgressBar()
-        self.progress_bar.setStyleSheet("""
-            QProgressBar {
-                border: 2px solid #e0e0e0;
-                border-radius: 8px;
-                text-align: center;
-                height: 25px;
-            }
-            QProgressBar::chunk {
-                background: qlineargradient(
-                    x1:0, y1:0, x2:1, y2:0,
-                    stop:0 #667eea, stop:1 #764ba2
-                );
-            }
-        """)
-        layout.addWidget(self.progress_bar)
-
-        layout.addSpacing(20)
+        self.content_layout.addLayout(header_layout)
+        self.content_layout.addSpacing(20)
 
         # WebView für H5P
         self.webview = QWebEngineView()
         self.webview.setMinimumHeight(500)
 
-        # 🔥 WICHTIG: Settings konfigurieren
+        # Settings konfigurieren
         settings = self.webview.settings()
         settings.setAttribute(QWebEngineSettings.WebAttribute.LocalContentCanAccessRemoteUrls, True)
         settings.setAttribute(QWebEngineSettings.WebAttribute.JavascriptEnabled, True)
         settings.setAttribute(QWebEngineSettings.WebAttribute.LocalStorageEnabled, True)
         settings.setAttribute(QWebEngineSettings.WebAttribute.AllowRunningInsecureContent, True)
 
-        # 🔥 NEU: JavaScript Console Logging aktivieren
+        # JavaScript Console Logging
         self.webview.page().javaScriptConsoleMessage = self.handle_js_console
 
         # WebChannel einrichten
@@ -126,68 +388,40 @@ class H5PGameWidget(QWidget):
         self.channel.registerObject("bridge", self.bridge)
         self.webview.page().setWebChannel(self.channel)
 
-        layout.addWidget(self.webview)
-
-        layout.addSpacing(20)
-
-        # Weiter-Button
-        self.next_btn = QPushButton("Weiter zum nächsten Rätsel")
-        self.next_btn.setStyleSheet("""
-            QPushButton {
-                background: qlineargradient(
-                    x1:0, y1:0, x2:1, y2:0,
-                    stop:0 #667eea, stop:1 #764ba2
-                );
-                color: white;
-                font-size: 16px;
-                font-weight: bold;
-                border-radius: 10px;
-                padding: 15px;
-                min-height: 50px;
-            }
-            QPushButton:hover {
-                background: qlineargradient(
-                    x1:0, y1:0, x2:1, y2:0,
-                    stop:0 #5568d3, stop:1 #6941a1
-                );
-            }
-        """)
-        self.next_btn.clicked.connect(self.next_puzzle)
-        self.next_btn.setVisible(False)
-        layout.addWidget(self.next_btn)
-
-        self.setLayout(layout)
-
-        # Timer für Zeitmessung
-        self.timer = QTimer()
-        self.timer.timeout.connect(self.update_timer)
-        self.timer.start(1000)
-
-    def handle_js_console(self, level, message, line, source):
-        """JavaScript Console Nachrichten loggen (nur Errors)"""
-        if level == 2:  # Nur Errors loggen
-            print(f"🌐 JS Error: {message}")
-
-    def load_puzzle(self, index):
-        """Lädt H5P-Rätsel"""
-        if index >= len(self.puzzles):
-            self.complete_session()
-            return
-
-        puzzle = self.puzzles[index]
-        self.current_puzzle_index = index
-        self.start_time = time.time()
-
-        # Fortschritt aktualisieren
-        self.progress_label.setText(f"Frage {index + 1} von {len(self.puzzles)}")
-        self.progress_bar.setMaximum(len(self.puzzles))
-        self.progress_bar.setValue(index)
+        self.content_layout.addWidget(self.webview)
 
         # H5P laden
         if puzzle.get("h5p_content_id"):
             self.load_h5p_content(puzzle)
         else:
             self.load_simple_quiz(puzzle)
+
+        # Timer starten
+        if hasattr(self, 'timer'):
+            self.timer.stop()
+        self.timer = QTimer()
+        self.timer.timeout.connect(self.update_timer)
+        self.timer.start(1000)
+
+    def confirm_exit(self):
+        """Bestätigung vor dem Verlassen"""
+        reply = QMessageBox.question(
+            self,
+            "Raum verlassen?",
+            "Möchtest du wirklich zurück zur Raumliste?",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No
+        )
+
+        if reply == QMessageBox.Yes:
+            if hasattr(self, 'timer'):
+                self.timer.stop()
+            self.exit_requested.emit()
+
+    def handle_js_console(self, level, message, line, source):
+        """JavaScript Console Nachrichten loggen (nur Errors)"""
+        if level == 2:
+            print(f"🌐 JS Error: {message}")
 
     def load_h5p_content(self, puzzle):
         """Lädt H5P-Content vom Server"""
@@ -242,7 +476,6 @@ class H5PGameWidget(QWidget):
     </div>
 
     <script>
-        // WebChannel-Bridge zu Python
         var bridge = null;
         new QWebChannel(qt.webChannelTransport, function(channel) {{
             bridge = channel.objects.bridge;
@@ -306,7 +539,6 @@ class H5PGameWidget(QWidget):
             }};
 
             new H5PStandalone.H5P(el, h5pConfig).then(function(instance) {{
-                // Event-Listener für H5P-Events
                 window.H5P = window.H5P || {{}};
                 H5P.externalDispatcher = H5P.externalDispatcher || new H5P.EventDispatcher();
 
@@ -335,18 +567,14 @@ class H5PGameWidget(QWidget):
             }});
         }}
 
-        // Starte Laden
         loadH5PFromServer();
     </script>
 </body>
 </html>
 """
 
-        # 🔥 FIX: Verwende setHtml mit baseUrl statt nur setHtml
-        # Das löst das localStorage Problem!
         from PySide6.QtCore import QUrl
         self.webview.setHtml(html, QUrl(server_url + "/"))
-        self.next_btn.setVisible(False)
 
     def load_simple_quiz(self, puzzle):
         """Fallback: Einfaches Multiple-Choice ohne H5P"""
@@ -459,13 +687,13 @@ class H5PGameWidget(QWidget):
 
     @Slot(dict)
     def handle_h5p_answer(self, answer_data):
-        """Verarbeitet Antwort von H5P"""
+        """Verarbeitet Antwort von H5P - OHNE MessageBox"""
         print(f"✅ Antwort verarbeitet: {answer_data}")
 
-        # Zeit berechnen
-        time_taken = int(time.time() - self.start_time)
+        if hasattr(self, 'timer'):
+            self.timer.stop()
 
-        # Antwort an Server senden
+        time_taken = int(time.time() - self.start_time)
         puzzle = self.puzzles[self.current_puzzle_index]
 
         result = self.api_client.submit_answer(
@@ -476,48 +704,23 @@ class H5PGameWidget(QWidget):
         )
 
         if result:
-            # Punkte aktualisieren
-            self.score += result.get("points_earned", 0)
-            self.score_label.setText(f"Punkte: {self.score}")
+            # Rätsel als gelöst markieren
+            self.completed_puzzles.add(self.current_puzzle_index)
 
-            # Feedback anzeigen
-            if result.get("is_correct") or answer_data.get("success"):
-                QMessageBox.information(
-                    self,
-                    "Richtig! ✅",
-                    f"Sehr gut! Du hast {result.get('points_earned', 10)} Punkte erhalten."
-                )
-            else:
-                QMessageBox.warning(
-                    self,
-                    "Leider falsch ❌",
-                    "Das war nicht die richtige Antwort. Beim nächsten Mal klappt's!"
-                )
-
-            # Weiter-Button anzeigen
-            self.next_btn.setVisible(True)
-
-    def next_puzzle(self):
-        """Nächstes Rätsel laden"""
-        self.next_btn.setVisible(False)
-        self.load_puzzle(self.current_puzzle_index + 1)
+            # Zurück zur Auswahl
+            QTimer.singleShot(1000, self.show_puzzle_selection)
 
     def update_timer(self):
         """Timer aktualisieren"""
-        if self.start_time > 0:
+        if self.start_time > 0 and hasattr(self, 'timer_label'):
             elapsed = int(time.time() - self.start_time)
             self.timer_label.setText(f"Zeit: {elapsed}s")
 
-    def complete_session(self):
-        """Session abschließen"""
-        self.timer.stop()
-
-        self.api_client.complete_session(self.session["id"])
-
+    def show_completion_message(self):
+        """Zeigt Glückwunsch-Nachricht wenn alle Rätsel gelöst sind"""
         QMessageBox.information(
             self,
-            "Geschafft! 🎉",
-            f"Du hast alle Rätsel gelöst!\n\nGesamtpunktzahl: {self.score}"
+            "Alle Rätsel gelöst! 🎉",
+            f"Gratuliere! Du hast alle {len(self.puzzles)} Rätsel erfolgreich gelöst!\n\n"
+            "Du kannst jetzt zur Raumliste zurückkehren oder einzelne Rätsel nochmal spielen."
         )
-
-        self.session_completed.emit()

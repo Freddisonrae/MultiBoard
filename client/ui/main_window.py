@@ -1,5 +1,5 @@
 """
-Hauptfenster der Desktop-App - MIT H5P SUPPORT
+Hauptfenster der Desktop-App - MIT H5P SUPPORT & EXIT HANDLING
 """
 from PySide6.QtWidgets import QFileDialog
 from PySide6.QtWidgets import (
@@ -9,7 +9,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, QTimer, Signal, QObject
 from PySide6.QtGui import QFont
 
-# 🔥 WICHTIG: Beide Widgets importieren
+# Beide Widgets importieren
 from .game_widget import GameWidget
 from .h5p_game_widget import H5PGameWidget
 
@@ -350,7 +350,7 @@ class MainWindow(QMainWindow):
             if child.widget():
                 child.widget().deleteLater()
 
-        # 🔥 NEU: Prüfe ob H5P-Content vorhanden ist
+        # Prüfe ob H5P-Content vorhanden ist
         has_h5p = any(p.get("h5p_content_id") for p in puzzles)
 
         if has_h5p:
@@ -360,7 +360,10 @@ class MainWindow(QMainWindow):
             print("📝 Nutze Standard Game Widget")
             game_widget = GameWidget(self.api_client, session, puzzles, self)
 
+        # NEU: Exit-Signal verbinden
         game_widget.session_completed.connect(self.load_rooms)
+        game_widget.exit_requested.connect(self.load_rooms)
+
         layout.addWidget(game_widget)
 
     def handle_logout(self):

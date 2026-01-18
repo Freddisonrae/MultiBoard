@@ -295,7 +295,6 @@ class APIClient:
             print(f"Fehler beim Laden der Rätsel: {e}")
             return []
 
-    # 🔥 WEBSOCKET-METHODEN
     def connect_websocket(self, on_rooms_updated: callable):
         """
         Startet WebSocket-Verbindung für Live-Updates
