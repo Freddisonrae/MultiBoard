@@ -4,7 +4,7 @@ let authToken = null;
 let currentUser = null;
 let currentRoomId = null;
 
-// Initialisierung
+// ========== Initialisierung ==========
 document.addEventListener('DOMContentLoaded', () => {
     initApp();
 });
@@ -35,16 +35,9 @@ function initApp() {
         createPuzzleBtn.addEventListener('click', showCreatePuzzleModal);
     }
 
-    // H5P Upload Button
     const uploadH5pBtn = document.getElementById('upload-h5p-btn');
     if (uploadH5pBtn) {
         uploadH5pBtn.addEventListener('click', showH5PUploadModal);
-    }
-
-    // Schüler erstellen Button - FIXED
-    const createStudentBtn = document.getElementById('create-student-btn');
-    if (createStudentBtn) {
-        createStudentBtn.addEventListener('click', showCreateStudentModal);
     }
 
     const modalClose = document.getElementById('modal-close');
@@ -52,7 +45,6 @@ function initApp() {
         modalClose.addEventListener('click', closeModal);
     }
 
-    // H5P Preview Modal schließen
     const h5pPreviewClose = document.getElementById('h5p-preview-close');
     if (h5pPreviewClose) {
         h5pPreviewClose.addEventListener('click', closeH5PPreview);
@@ -75,7 +67,7 @@ function initApp() {
     }
 }
 
-// Tab-Umschalter für Login/Register
+// ========== Authentication ==========
 function switchAuthMode(mode) {
     document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
     document.querySelector(`[data-mode="${mode}"]`).classList.add('active');
@@ -178,11 +170,7 @@ async function handleRegister(e) {
             return;
         }
 
-        showMessage(
-            '✅ Registrierung erfolgreich! Sie können sich jetzt anmelden.',
-            'success'
-        );
-
+        showMessage('✅ Registrierung erfolgreich! Sie können sich jetzt anmelden.', 'success');
         document.getElementById('register-form').reset();
 
         setTimeout(() => {
@@ -193,17 +181,6 @@ async function handleRegister(e) {
         console.error('Register error:', error);
         showMessage('Verbindungsfehler. Bitte prüfen Sie Ihre Internetverbindung.', 'error');
     }
-}
-
-function showMessage(text, type) {
-    const msg = document.getElementById('auth-message');
-    msg.textContent = text;
-    msg.className = `message ${type} visible`;
-}
-
-function hideMessage() {
-    const msg = document.getElementById('auth-message');
-    msg.className = 'message';
 }
 
 function handleLogout() {
@@ -226,6 +203,18 @@ function showDashboard() {
     document.getElementById('user-name').textContent = currentUser.full_name || currentUser.username;
 }
 
+function showMessage(text, type) {
+    const msg = document.getElementById('auth-message');
+    msg.textContent = text;
+    msg.className = `message ${type} visible`;
+}
+
+function hideMessage() {
+    const msg = document.getElementById('auth-message');
+    msg.className = 'message';
+}
+
+// ========== API Requests ==========
 async function apiRequest(endpoint, options = {}) {
     const headers = {
         ...options.headers
@@ -253,6 +242,7 @@ async function apiRequest(endpoint, options = {}) {
     return response.json();
 }
 
+// ========== Tab-Switching ==========
 function switchTab(tabName) {
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active'));
@@ -265,6 +255,7 @@ function switchTab(tabName) {
     else if (tabName === 'students') loadStudents();
 }
 
+// ========== Räume verwalten ==========
 async function loadRooms() {
     try {
         const rooms = await apiRequest('/api/admin/rooms');
@@ -323,6 +314,11 @@ async function deleteRoom(roomId) {
     }
 }
 
+function editRoom(roomId) {
+    alert('Raum-Bearbeitung kommt bald! (ID: ' + roomId + ')');
+    // TODO: Implementierung für Raum-Bearbeitung
+}
+
 function showCreateRoomModal() {
     showModal('Neuer Raum', `
         <form id="room-form">
@@ -365,134 +361,7 @@ function showCreateRoomModal() {
     });
 }
 
-// H5P Upload Modal
-function showH5PUploadModal() {
-    const roomId = document.getElementById('room-select').value;
-    if (!roomId) {
-        alert('Bitte wählen Sie zuerst einen Raum aus');
-        return;
-    }
-
-    currentRoomId = roomId;
-
-    showModal('H5P-Datei hochladen', `
-        <div class="h5p-upload-info">
-            <p>📤 Laden Sie eine .h5p Datei hoch</p>
-            <p style="font-size: 14px; color: #666;">
-                H5P-Dateien können Sie von <a href="https://h5p.org" target="_blank">h5p.org</a> herunterladen
-                oder mit dem H5P-Editor erstellen.
-            </p>
-        </div>
-
-        <form id="h5p-upload-form" enctype="multipart/form-data">
-            <div class="form-group">
-                <label>H5P-Datei auswählen (.h5p)</label>
-                <input type="file" id="h5p-file" accept=".h5p" required>
-            </div>
-
-            <div id="upload-progress" style="display: none;">
-                <div class="progress-bar">
-                    <div class="progress-fill" id="progress-fill"></div>
-                </div>
-                <p id="upload-status">Hochladen...</p>
-            </div>
-
-            <button type="submit" class="btn-primary" id="upload-submit-btn">Hochladen & Vorschau</button>
-        </form>
-    `);
-
-    document.getElementById('h5p-upload-form').addEventListener('submit', handleH5PUpload);
-}
-
-async function handleH5PUpload(e) {
-    e.preventDefault();
-
-    const fileInput = document.getElementById('h5p-file');
-    const file = fileInput.files[0];
-
-    if (!file) {
-        alert('Bitte wählen Sie eine Datei aus');
-        return;
-    }
-
-    if (!file.name.endsWith('.h5p')) {
-        alert('Bitte wählen Sie eine .h5p Datei');
-        return;
-    }
-
-    // Upload UI zeigen
-    document.getElementById('upload-progress').style.display = 'block';
-    document.getElementById('upload-submit-btn').disabled = true;
-
-    const formData = new FormData();
-    formData.append('file', file);
-
-    try {
-        const response = await fetch(
-            `${API_BASE}/api/admin/h5p/upload?room_id=${currentRoomId}`,
-            {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${authToken}`
-                },
-                body: formData
-            }
-        );
-
-        if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.detail || 'Upload fehlgeschlagen');
-        }
-
-        const result = await response.json();
-
-        document.getElementById('upload-status').textContent = '✅ Upload erfolgreich!';
-
-        // Modal schließen und Puzzle-Liste neu laden
-        setTimeout(() => {
-            closeModal();
-            loadPuzzles();
-
-            // H5P-Vorschau zeigen
-            showH5PPreview(result.content_id);
-        }, 1000);
-
-    } catch (error) {
-        console.error('Upload error:', error);
-        document.getElementById('upload-status').textContent = '❌ ' + error.message;
-        document.getElementById('upload-submit-btn').disabled = false;
-    }
-}
-
-// H5P Vorschau anzeigen
-function showH5PPreview(contentId) {
-    const overlay = document.getElementById('h5p-preview-overlay');
-    const container = document.getElementById('h5p-preview-container');
-
-    overlay.classList.add('active');
-
-    // H5P Standalone initialisieren
-    container.innerHTML = ''; // Clear previous content
-
-    const h5pContainer = document.createElement('div');
-    h5pContainer.className = 'h5p-standalone';
-    container.appendChild(h5pContainer);
-
-    new H5PStandalone.H5P(h5pContainer, {
-        h5pJsonPath: `/static/h5p-content/${contentId}`,
-        frameJs: '/static/h5p-standalone/dist/frame.bundle.js',
-        frameCss: '/static/h5p-standalone/dist/styles/h5p.css',
-    });
-}
-
-function closeH5PPreview() {
-    const overlay = document.getElementById('h5p-preview-overlay');
-    overlay.classList.remove('active');
-
-    // Container leeren
-    document.getElementById('h5p-preview-container').innerHTML = '';
-}
-
+// ========== Rätsel verwalten ==========
 async function loadPuzzles() {
     try {
         const rooms = await apiRequest('/api/admin/rooms');
@@ -630,13 +499,314 @@ async function deletePuzzle(puzzleId) {
     if (!confirm('Rätsel wirklich löschen?')) return;
 
     try {
-        await apiRequest(`/api/admin/puzzles/${puzzleId}`, { method: 'DELETE' });
-        loadPuzzles();
+        const result = await apiRequest(`/api/admin/puzzles/${puzzleId}`, { method: 'DELETE' });
+
+        console.log('Puzzle gelöscht:', result);
+
+        // Puzzle-Liste neu laden
+        const roomId = document.getElementById('room-select').value;
+        if (roomId) {
+            const puzzles = await apiRequest(`/api/admin/rooms/${roomId}/puzzles`);
+            displayPuzzles(puzzles);
+        }
+
+        if (result.was_h5p) {
+            alert('✅ H5P-Rätsel und alle Dateien wurden gelöscht');
+        } else {
+            alert('✅ Rätsel wurde gelöscht');
+        }
+
     } catch (error) {
-        alert('Fehler beim Löschen');
+        console.error('Fehler beim Löschen:', error);
+        alert('❌ Fehler beim Löschen des Rätsels');
     }
 }
 
+function editPuzzle(puzzleId) {
+    alert('Puzzle-Bearbeitung kommt bald! (ID: ' + puzzleId + ')');
+    // TODO: Implementierung für Puzzle-Bearbeitung
+}
+
+// ========== H5P Upload ==========
+function showH5PUploadModal() {
+    const roomId = document.getElementById('room-select').value;
+    if (!roomId) {
+        alert('Bitte wählen Sie zuerst einen Raum aus');
+        return;
+    }
+
+    currentRoomId = roomId;
+
+    showModal('H5P-Datei hochladen', `
+        <div class="h5p-upload-info">
+            <p>📤 Laden Sie eine .h5p Datei hoch</p>
+            <p style="font-size: 14px; color: #666;">
+                H5P-Dateien können Sie von <a href="https://h5p.org" target="_blank">h5p.org</a> herunterladen
+                oder mit dem H5P-Editor erstellen.
+            </p>
+        </div>
+
+        <form id="h5p-upload-form" enctype="multipart/form-data">
+            <div class="form-group">
+                <label>H5P-Datei auswählen (.h5p)</label>
+                <input type="file" id="h5p-file" accept=".h5p" required>
+            </div>
+
+            <div id="upload-progress" style="display: none;">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progress-fill"></div>
+                </div>
+                <p id="upload-status">Hochladen...</p>
+            </div>
+
+            <button type="submit" class="btn-primary" id="upload-submit-btn">Hochladen & Vorschau</button>
+        </form>
+    `);
+
+    document.getElementById('h5p-upload-form').addEventListener('submit', handleH5PUpload);
+}
+
+async function handleH5PUpload(e) {
+    e.preventDefault();
+
+    const fileInput = document.getElementById('h5p-file');
+    const file = fileInput.files[0];
+
+    if (!file) {
+        alert('Bitte wählen Sie eine Datei aus');
+        return;
+    }
+
+    if (!file.name.endsWith('.h5p')) {
+        alert('Bitte wählen Sie eine .h5p Datei');
+        return;
+    }
+
+    // Upload UI zeigen
+    document.getElementById('upload-progress').style.display = 'block';
+    document.getElementById('upload-submit-btn').disabled = true;
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+        const response = await fetch(
+            `${API_BASE}/api/admin/h5p/upload?room_id=${currentRoomId}`,
+            {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${authToken}`
+                },
+                body: formData
+            }
+        );
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Upload fehlgeschlagen');
+        }
+
+        const result = await response.json();
+
+        document.getElementById('upload-status').textContent = '✅ Upload erfolgreich!';
+
+        // Modal schließen und Puzzle-Liste neu laden
+        setTimeout(() => {
+            closeModal();
+            loadPuzzles();
+
+            // H5P-Vorschau zeigen
+            showH5PPreview(result.content_id);
+        }, 1000);
+
+    } catch (error) {
+        console.error('Upload error:', error);
+        document.getElementById('upload-status').textContent = '❌ ' + error.message;
+        document.getElementById('upload-submit-btn').disabled = false;
+    }
+}
+
+// ========== H5P Vorschau ==========
+let currentH5PInstance = null; // Aktuelle H5P-Instanz speichern
+let h5pLoadInterval = null; // Interval zum Aufräumen
+
+function showH5PPreview(contentId) {
+    console.log('🎬 showH5PPreview gestartet für Content:', contentId);
+
+    const overlay = document.getElementById('h5p-preview-overlay');
+    const container = document.getElementById('h5p-preview-container');
+
+    // WICHTIG: Alte Instanz KOMPLETT aufräumen
+    if (currentH5PInstance) {
+        console.log('🧹 Räume alte H5P-Instanz auf...');
+        currentH5PInstance = null;
+    }
+
+    // Altes Interval stoppen falls noch aktiv
+    if (h5pLoadInterval) {
+        console.log('⏹️ Stoppe altes Interval');
+        clearInterval(h5pLoadInterval);
+        h5pLoadInterval = null;
+    }
+
+    console.log('📊 H5PStandalone Status:', typeof H5PStandalone);
+
+    overlay.classList.add('active');
+
+    // Container KOMPLETT neu erstellen
+    console.log('🗑️ Leere Container...');
+    container.innerHTML = '';
+
+    // Neuen H5P-Container erstellen
+    const h5pContainer = document.createElement('div');
+    h5pContainer.className = 'h5p-standalone';
+    h5pContainer.id = 'h5p-container-' + Date.now();
+    container.appendChild(h5pContainer);
+
+    // Loading-Anzeige
+    h5pContainer.innerHTML = '<div class="loading">⏳ H5P wird geladen...</div>';
+
+    // Prüfen ob H5PStandalone SOFORT verfügbar ist
+    if (typeof H5PStandalone !== 'undefined') {
+        console.log('✅ H5PStandalone SOFORT verfügbar');
+        initH5P(h5pContainer, contentId);
+        return;
+    }
+
+    // Falls nicht: Warten
+    console.log('⏳ Warte auf H5PStandalone...');
+    let attempts = 0;
+
+    h5pLoadInterval = setInterval(() => {
+        attempts++;
+        console.log(`⏳ Versuch ${attempts}: H5PStandalone =`, typeof H5PStandalone);
+
+        if (typeof H5PStandalone !== 'undefined') {
+            console.log('✅ H5PStandalone gefunden nach', attempts, 'Versuchen');
+            clearInterval(h5pLoadInterval);
+            h5pLoadInterval = null;
+
+            initH5P(h5pContainer, contentId);
+        }
+
+        // Nach 50 Versuchen (5 Sekunden) aufgeben
+        if (attempts >= 50) {
+            clearInterval(h5pLoadInterval);
+            h5pLoadInterval = null;
+            console.error('❌ H5PStandalone Timeout nach 5 Sekunden');
+            showH5PError(h5pContainer, contentId);
+        }
+    }, 100);
+}
+
+// Separate Funktion für H5P-Initialisierung
+function initH5P(h5pContainer, contentId) {
+    console.log('🚀 Initialisiere H5P für Content:', contentId);
+
+    // Kleine Verzögerung für DOM-Stabilität
+    setTimeout(() => {
+        try {
+            console.log('📦 Erstelle H5P-Instanz...');
+
+            currentH5PInstance = new H5PStandalone.H5P(h5pContainer, {
+                h5pJsonPath: `${API_BASE}/static/h5p-content/${contentId}`,
+                frameJs: `${API_BASE}/static/h5p-standalone/dist/frame.bundle.js`,
+                frameCss: `${API_BASE}/static/h5p-standalone/dist/styles/h5p.css`,
+            });
+
+            console.log('✅ H5P Instanz erfolgreich erstellt:', currentH5PInstance);
+
+        } catch (error) {
+            console.error('❌ H5P Initialisierungsfehler:', error);
+            h5pContainer.innerHTML = `
+                <div class="error-box" style="background: #fee; padding: 20px; border-radius: 10px;">
+                    <h3 style="color: #c00;">❌ H5P konnte nicht geladen werden</h3>
+                    <p><b>Fehler:</b> ${error.message}</p>
+                    <p><b>Content-ID:</b> ${contentId}</p>
+                    <p style="margin-top: 15px;">Prüfen Sie ob die H5P-Dateien korrekt hochgeladen wurden:</p>
+                    <code style="background: #f5f5f5; padding: 10px; display: block; border-radius: 5px;">
+                        ${API_BASE}/static/h5p-content/${contentId}/h5p.json
+                    </code>
+                    <p style="margin-top: 10px;"><b>Stack Trace:</b></p>
+                    <pre style="background: #f5f5f5; padding: 10px; font-size: 11px; overflow-x: auto;">${error.stack}</pre>
+                </div>
+            `;
+        }
+    }, 150);
+}
+
+// Separate Funktion für Fehleranzeige
+function showH5PError(h5pContainer, contentId) {
+    h5pContainer.innerHTML = `
+        <div class="error-box" style="background: #fee; padding: 20px; border-radius: 10px; border: 2px solid #c00;">
+            <h3 style="color: #c00;">❌ H5P Standalone nicht geladen</h3>
+            <p><b>Die H5P-Bibliothek konnte nicht gefunden werden.</b></p>
+            <p>Mögliche Ursachen:</p>
+            <ul style="margin: 10px 0; padding-left: 20px;">
+                <li>Script-Datei fehlt: <code>/static/h5p-standalone/dist/main.bundle.js</code></li>
+                <li>Pfad ist falsch konfiguriert</li>
+                <li>Server liefert die Datei nicht aus</li>
+            </ul>
+            <p><b>Prüfen Sie:</b></p>
+            <ol style="margin: 10px 0; padding-left: 20px;">
+                <li>Öffnen Sie in einem neuen Tab: <code>${API_BASE}/static/h5p-standalone/dist/main.bundle.js</code></li>
+                <li>Wenn 404-Fehler: Datei fehlt im /static Ordner</li>
+                <li>Browser-Console (F12) für weitere Fehler prüfen</li>
+            </ol>
+            <p><a href="https://github.com/tunapanda/h5p-standalone" target="_blank" style="color: #667eea;">H5P Standalone auf GitHub</a></p>
+        </div>
+    `;
+}
+
+function closeH5PPreview() {
+    console.log('🔴 closeH5PPreview aufgerufen');
+
+    const overlay = document.getElementById('h5p-preview-overlay');
+    overlay.classList.remove('active');
+
+    // WICHTIG: Interval stoppen
+    if (h5pLoadInterval) {
+        console.log('⏹️ Stoppe H5P-Load-Interval');
+        clearInterval(h5pLoadInterval);
+        h5pLoadInterval = null;
+    }
+
+    // WICHTIG: Instanz aufräumen
+    if (currentH5PInstance) {
+        console.log('🧹 Räume H5P-Instanz beim Schließen auf');
+        currentH5PInstance = null;
+    }
+
+    // Container komplett leeren
+    const container = document.getElementById('h5p-preview-container');
+
+    // Alle iframes entfernen
+    const iframes = container.querySelectorAll('iframe');
+    console.log('🗑️ Entferne', iframes.length, 'iframes');
+    iframes.forEach(iframe => {
+        iframe.src = 'about:blank';
+        iframe.remove();
+    });
+
+    // Alle Scripts entfernen
+    const scripts = container.querySelectorAll('script');
+    console.log('🗑️ Entferne', scripts.length, 'scripts');
+    scripts.forEach(script => script.remove());
+
+    // Container komplett leeren
+    container.innerHTML = '';
+
+    console.log('✅ H5P Preview geschlossen und aufgeräumt');
+
+    // 🔥 WORKAROUND: Seite neu laden nach Preview-Schließen
+    // H5P Standalone hat Probleme beim mehrfachen Laden
+    console.log('🔄 Lade Seite neu für sauberen H5P-Reset...');
+    setTimeout(() => {
+        location.reload();
+    }, 300);
+}
+
+// ========== Schüler verwalten ==========
 async function loadStudents() {
     try {
         const students = await apiRequest('/api/admin/students');
@@ -660,72 +830,11 @@ function displayStudents(students) {
                 <h4>${student.full_name || student.username}</h4>
                 <p>Benutzername: ${student.username}</p>
             </div>
-            <div class="item-actions">
-                <button class="btn-danger" onclick="deleteStudent(${student.id})">Löschen</button>
-            </div>
         </div>
     `).join('');
 }
 
-// NEUE FUNKTION: Schüler erstellen Modal
-function showCreateStudentModal() {
-    showModal('Neuer Schüler', `
-        <form id="student-form">
-            <div class="form-group">
-                <label>Benutzername</label>
-                <input type="text" id="student-username" required minlength="3">
-                <small>Mindestens 3 Zeichen</small>
-            </div>
-            <div class="form-group">
-                <label>Vollständiger Name</label>
-                <input type="text" id="student-fullname" required>
-            </div>
-            <div class="form-group">
-                <label>Passwort</label>
-                <input type="password" id="student-password" required minlength="8">
-                <small>Mindestens 8 Zeichen</small>
-            </div>
-            <button type="submit" class="btn-primary">Schüler erstellen</button>
-        </form>
-    `);
-
-    document.getElementById('student-form').addEventListener('submit', async (e) => {
-        e.preventDefault();
-
-        const studentData = {
-            username: document.getElementById('student-username').value.trim(),
-            password: document.getElementById('student-password').value,
-            role: 'student',
-            full_name: document.getElementById('student-fullname').value.trim()
-        };
-
-        try {
-            await apiRequest('/api/auth/register', {
-                method: 'POST',
-                body: JSON.stringify(studentData)
-            });
-
-            closeModal();
-            loadStudents();
-            alert('Schüler erfolgreich erstellt!');
-        } catch (error) {
-            alert('Fehler beim Erstellen des Schülers');
-        }
-    });
-}
-
-// NEUE FUNKTION: Schüler löschen
-async function deleteStudent(studentId) {
-    if (!confirm('Schüler wirklich löschen?')) return;
-
-    try {
-        await apiRequest(`/api/admin/students/${studentId}`, { method: 'DELETE' });
-        loadStudents();
-    } catch (error) {
-        alert('Fehler beim Löschen');
-    }
-}
-
+// ========== Modal-Funktionen ==========
 function showModal(title, content) {
     document.getElementById('modal-title').textContent = title;
     document.getElementById('modal-body').innerHTML = content;

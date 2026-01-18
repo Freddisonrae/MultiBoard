@@ -21,7 +21,7 @@ from server.database import get_db, init_db
 from server.auth import authenticate_user, create_access_token, get_password_hash, ACCESS_TOKEN_EXPIRE_MINUTES
 from server import models
 from shared.models import LoginRequest, TokenResponse, User, UserCreate
-from server.routes import admin, game, websocket, h5p, quizzes
+from server.routes import admin, game, websocket, h5p
 
 # FastAPI App erstellen
 app = FastAPI(
@@ -61,22 +61,19 @@ app.include_router(admin.router)
 app.include_router(game.router)
 app.include_router(websocket.router)
 app.include_router(h5p.router)
-app.include_router(quizzes.router)
+
 
 @app.on_event("startup")
 async def startup_event():
-    """Wird beim Server-Start ausgeführt"""
-    print("🚀 Server startet...")
+    # Startet server + Datenbank
+    print("Server startet...")
     init_db()
-    print("✅ Datenbank initialisiert")
-
-    quizzes.load_rooms_from_disk()
-    print(f"✅ Server-Offlineräume geladen: {len(quizzes.OFFLINE_ROOMS)}")
+    print("Datenbank initialisiert")
 
 
 @app.get("/")
 async def root():
-    """Root-Endpunkt"""
+    #Rootendpunkt
     return {
         "message": "MultiRoom - Multi-Room Puzzle Game API",
         "version": "1.0.0",
@@ -85,7 +82,7 @@ async def root():
     }
 
 
-# In main.py - Login anpassen:
+
 @app.post("/api/auth/login", response_model=TokenResponse)
 async def login(
         credentials: LoginRequest,
@@ -154,11 +151,9 @@ async def health_check():
     """Health-Check-Endpunkt"""
     return {"status": "healthy", "service": "school-puzzle-game"}
 
-#Erstellen von Lehrern
+
 
 from pydantic import BaseModel, Field
-
-
 class TeacherRegistration(BaseModel):
     username: str = Field(..., min_length=3, max_length=100)
     password: str = Field(..., min_length=8)
