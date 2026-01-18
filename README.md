@@ -57,7 +57,7 @@ Sie können eine Datenbank einrichten.
 Dazu müssen sie aber über den File .env die Datenbank User anpassen, sowie setup_db.py nutzen.
 
 
-### 2. Server einrichten
+### 3. Server einrichten
 
 ```bash
 cd server
