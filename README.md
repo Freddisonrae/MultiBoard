@@ -32,6 +32,9 @@ Das Projekt besteht aus zwei Hauptkomponenten:
   * Anzeige und Interaktion mit den Boards
   * Zugriff auf die H5P-Räume
 
+* **Datenbank**
+  * Speichert Schüler und Lehrer
+
 
 ## Voraussetzungen
 
@@ -49,6 +52,9 @@ Das Projekt besteht aus zwei Hauptkomponenten:
 git clone <GITHUB-REPOSITORY-URL>
 cd <REPOSITORY-NAME>
 ```
+### 2. Datenbank einrichten (optional)
+Sie können eine Datenbank einrichten. 
+Dazu müssen sie aber über den File .env die Datenbank User anpassen, sowie setup_db.py nutzen.
 
 
 ### 2. Server einrichten
