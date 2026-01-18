@@ -1,9 +1,9 @@
 """
-Login-Dialog für Desktop-App
+Login-Dialog für Desktop-App - Updated mit modernem Theme
 """
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel,
-    QLineEdit, QPushButton, QMessageBox
+    QLineEdit, QPushButton, QMessageBox, QFrame
 )
 from .register_dialog import RegisterDialog
 from PySide6.QtCore import Qt, Signal
@@ -18,125 +18,85 @@ class LoginDialog(QDialog):
     def __init__(self, api_client, parent=None):
         super().__init__(parent)
         self.api_client = api_client
+        self.setObjectName("LoginDialog")
         self.init_ui()
 
     def init_ui(self):
         """UI initialisieren"""
         self.setWindowTitle("School Puzzle Game - Login")
-        self.setMinimumSize(400, 300)
-        self.setStyleSheet("""
-            QDialog {
-                background: qlineargradient(
-                    x1:0, y1:0, x2:1, y2:1,
-                    stop:0 #667eea, stop:1 #764ba2
-                );
-            }
-        """)
+        self.setMinimumSize(520, 560)
+        self.resize(520, 560)
 
-        layout = QVBoxLayout()
-        layout.setSpacing(20)
-        layout.setContentsMargins(40, 40, 40, 40)
+        # Haupt-Layout
+        main_layout = QVBoxLayout()
+        main_layout.setSpacing(0)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+
+        # Content Card
+        content_card = QFrame()
+        content_card.setObjectName("Card")
+        card_layout = QVBoxLayout(content_card)
+        card_layout.setSpacing(20)
+        card_layout.setContentsMargins(40, 50, 40, 50)
 
         # Logo/Titel
         title = QLabel("🎓 School Puzzle Game")
+        title.setObjectName("Title")
         title.setAlignment(Qt.AlignCenter)
-        title.setStyleSheet("""
-            color: white;
-            font-size: 28px;
-            font-weight: bold;
-        """)
-        layout.addWidget(title)
+        card_layout.addWidget(title)
 
         subtitle = QLabel("Schüler-Anmeldung")
+        subtitle.setObjectName("Subtitle")
         subtitle.setAlignment(Qt.AlignCenter)
-        subtitle.setStyleSheet("""
-            color: rgba(255, 255, 255, 0.9);
-            font-size: 16px;
-        """)
-        layout.addWidget(subtitle)
+        card_layout.addWidget(subtitle)
 
-        layout.addSpacing(20)
+        card_layout.addSpacing(10)
 
-        # Eingabefelder
+        # Benutzername
+        username_label = QLabel("Benutzername")
+        card_layout.addWidget(username_label)
+
         self.username_input = QLineEdit()
-        self.username_input.setPlaceholderText("Benutzername")
-        self.username_input.setStyleSheet(self._input_style())
-        self.username_input.setMinimumHeight(45)
-        layout.addWidget(self.username_input)
+        self.username_input.setPlaceholderText("Benutzername eingeben")
+        self.username_input.setMinimumHeight(40)
+        card_layout.addWidget(self.username_input)
+
+        # Passwort
+        password_label = QLabel("Passwort")
+        card_layout.addWidget(password_label)
 
         self.password_input = QLineEdit()
-        self.password_input.setPlaceholderText("Passwort")
+        self.password_input.setPlaceholderText("Passwort eingeben")
         self.password_input.setEchoMode(QLineEdit.Password)
-        self.password_input.setStyleSheet(self._input_style())
-        self.password_input.setMinimumHeight(45)
-        layout.addWidget(self.password_input)
+        self.password_input.setMinimumHeight(40)
+        card_layout.addWidget(self.password_input)
+
+        card_layout.addSpacing(10)
 
         # Login-Button
         self.login_btn = QPushButton("Anmelden")
-        self.login_btn.setStyleSheet("""
-            QPushButton {
-                background-color: white;
-                color: #667eea;
-                font-size: 16px;
-                font-weight: bold;
-                border-radius: 8px;
-                padding: 12px;
-                min-height: 45px;
-            }
-            QPushButton:hover {
-                background-color: #f0f0f0;
-            }
-            QPushButton:pressed {
-                background-color: #e0e0e0;
-            }
-        """)
+        self.login_btn.setObjectName("PrimaryButton")
+        self.login_btn.setMinimumHeight(44)
         self.login_btn.clicked.connect(self.handle_login)
-        layout.addWidget(self.login_btn)
-        self.register_btn = QPushButton("Registrieren")
-        self.register_btn.setStyleSheet("""
-            QPushButton {
-                background-color: transparent;
-                color: white;
-                font-size: 14px;
-                text-decoration: underline;
-                border: none;
-            }
-            QPushButton:hover { color: #e0e0ff; }
-        """)
+        card_layout.addWidget(self.login_btn)
+
+        # Registrieren-Button
+        self.register_btn = QPushButton("Neuen Account erstellen")
+        self.register_btn.setObjectName("GhostBtn")
+        self.register_btn.setMinimumHeight(40)
         self.register_btn.clicked.connect(self.open_register)
-        layout.addWidget(self.register_btn, alignment=Qt.AlignCenter)
+        card_layout.addWidget(self.register_btn)
 
         # Enter-Taste aktivieren
         self.password_input.returnPressed.connect(self.handle_login)
 
-        layout.addStretch()
+        card_layout.addStretch()
 
-        self.setLayout(layout)
-
-    def _input_style(self):
-        """Style für Input-Felder"""
-        return """
-            QLineEdit {
-                background-color: white;
-                color: black;              
-                border: none;
-                border-radius: 8px;
-                padding: 12px;
-                font-size: 14px;
-            }
-            QLineEdit:focus {
-                background-color: #ffffff;
-                color: black;              
-            }
-        """
+        main_layout.addWidget(content_card)
+        self.setLayout(main_layout)
 
     def handle_login(self):
         """Login durchführen"""
-
-        def open_register(self):
-            dialog = RegisterDialog(self.api_client, self)
-            dialog.exec()
-
         username = self.username_input.text().strip()
         password = self.password_input.text().strip()
 
@@ -166,6 +126,7 @@ class LoginDialog(QDialog):
                 "Login fehlgeschlagen",
                 "Benutzername oder Passwort falsch.\nBitte versuchen Sie es erneut."
             )
+
     def open_register(self):
         dialog = RegisterDialog(self.api_client, self)
         dialog.exec()

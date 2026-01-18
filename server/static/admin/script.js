@@ -529,7 +529,7 @@ function displayPuzzles(puzzles) {
                     Typ: ${puzzle.puzzle_type} |
                     Punkte: ${puzzle.points} |
                     Zeit: ${puzzle.time_limit_seconds}s
-                    ${puzzle.h5p_content_id ? ' | 🎨 H5P-Interaktiv' : ''}
+                    ${puzzle.h5p_content_id ? ' |  H5P-Interaktiv' : ''}
                 </p>
             </div>
             <div class="item-actions">

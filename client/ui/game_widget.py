@@ -14,9 +14,8 @@ import time
 class GameWidget(QWidget):
     """Widget für Rätsel-Anzeige"""
 
-    puzzle_completed = Signal(dict)
+    puzzle_completed = Signal(dict)  # Sendet Ergebnis
     session_completed = Signal()
-    exit_requested = Signal()  # NEU: Signal für Exit
 
     def __init__(self, api_client, session, puzzles, parent=None):
         super().__init__(parent)
@@ -39,31 +38,11 @@ class GameWidget(QWidget):
         # Header mit Fortschritt
         header_layout = QHBoxLayout()
 
-        # NEU: Exit-Button links
-        self.exit_btn = QPushButton("← Zurück")
-        self.exit_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #e74c3c;
-                color: white;
-                font-size: 14px;
-                font-weight: bold;
-                border-radius: 8px;
-                padding: 10px 20px;
-            }
-            QPushButton:hover {
-                background-color: #c0392b;
-            }
-        """)
-        self.exit_btn.clicked.connect(self.confirm_exit)
-        header_layout.addWidget(self.exit_btn)
-
-        header_layout.addSpacing(20)
-
         self.progress_label = QLabel()
         self.progress_label.setStyleSheet("""
             font-size: 16px;
             font-weight: bold;
-            color: #667eea;
+            color: #4F46E5;
         """)
         header_layout.addWidget(self.progress_label)
 
@@ -73,7 +52,7 @@ class GameWidget(QWidget):
         self.score_label.setStyleSheet("""
             font-size: 16px;
             font-weight: bold;
-            color: #27ae60;
+            color: #10B981;
         """)
         header_layout.addWidget(self.score_label)
 
@@ -81,7 +60,7 @@ class GameWidget(QWidget):
         self.timer_label.setStyleSheet("""
             font-size: 16px;
             font-weight: bold;
-            color: #e74c3c;
+            color: #EF4444;
         """)
         header_layout.addWidget(self.timer_label)
 
@@ -97,10 +76,7 @@ class GameWidget(QWidget):
                 height: 25px;
             }
             QProgressBar::chunk {
-                background: qlineargradient(
-                    x1:0, y1:0, x2:1, y2:0,
-                    stop:0 #667eea, stop:1 #764ba2
-                );
+                background: #4F46E5;
             }
         """)
         layout.addWidget(self.progress_bar)
@@ -113,11 +89,12 @@ class GameWidget(QWidget):
         self.question_label.setStyleSheet("""
             QLabel {
                 background-color: #f5f5f5;
-                border: 2px solid #667eea;
+                border: 2px solid #4F46E5;
                 border-radius: 10px;
-                padding: 20px;
+                padding: 18px;
                 font-size: 18px;
                 font-weight: bold;
+                min-height: 50px;
             }
         """)
         layout.addWidget(self.question_label)
@@ -140,11 +117,12 @@ class GameWidget(QWidget):
                 }
                 QRadioButton:hover {
                     background-color: #f0f0f0;
-                    border-color: #667eea;
+                    border-color: #4F46E5;
                 }
                 QRadioButton:checked {
-                    background-color: #e8eaff;
-                    border-color: #667eea;
+                    background-color: #EEF2FF;
+                    border-color: #4F46E5;
+                    font-weight: bold;
                 }
                 QRadioButton::indicator {
                     width: 20px;
@@ -161,10 +139,7 @@ class GameWidget(QWidget):
         self.submit_btn = QPushButton("Antwort absenden")
         self.submit_btn.setStyleSheet("""
             QPushButton {
-                background: qlineargradient(
-                    x1:0, y1:0, x2:1, y2:0,
-                    stop:0 #667eea, stop:1 #764ba2
-                );
+                background: #4F46E5;
                 color: white;
                 font-size: 16px;
                 font-weight: bold;
@@ -173,10 +148,7 @@ class GameWidget(QWidget):
                 min-height: 50px;
             }
             QPushButton:hover {
-                background: qlineargradient(
-                    x1:0, y1:0, x2:1, y2:0,
-                    stop:0 #5568d3, stop:1 #6941a1
-                );
+                background: #4338CA;
             }
             QPushButton:disabled {
                 background-color: #cccccc;
@@ -192,21 +164,7 @@ class GameWidget(QWidget):
         # Timer für Zeitmessung
         self.timer = QTimer()
         self.timer.timeout.connect(self.update_timer)
-        self.timer.start(1000)
-
-    def confirm_exit(self):
-        """Bestätigung vor dem Verlassen"""
-        reply = QMessageBox.question(
-            self,
-            "Rätsel verlassen?",
-            "Möchtest du wirklich zurück zur Raumliste?\nDein Fortschritt geht verloren.",
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No
-        )
-
-        if reply == QMessageBox.Yes:
-            self.timer.stop()
-            self.exit_requested.emit()
+        self.timer.start(1000)  # Jede Sekunde
 
     def load_puzzle(self, index):
         """Lädt Rätsel"""

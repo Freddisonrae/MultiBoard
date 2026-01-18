@@ -1,5 +1,5 @@
 """
-Hauptfenster der Desktop-App - MIT H5P SUPPORT & EXIT HANDLING
+Hauptfenster der Desktop-App - MIT modernem Indigo-Design
 """
 from PySide6.QtWidgets import QFileDialog
 from PySide6.QtWidgets import (
@@ -9,7 +9,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt, QTimer, Signal, QObject
 from PySide6.QtGui import QFont
 
-# Beide Widgets importieren
+# 🔥 WICHTIG: Beide Widgets importieren
 from .game_widget import GameWidget
 from .h5p_game_widget import H5PGameWidget
 
@@ -68,39 +68,31 @@ class MainWindow(QMainWindow):
         main_layout.setSpacing(0)
         main_layout.setContentsMargins(0, 0, 0, 0)
 
-        # Header
+        # Header - UPDATED mit Indigo-Hintergrund
         header = QWidget()
-        header.setStyleSheet("""
-            background: qlineargradient(
-                x1:0, y1:0, x2:1, y2:0,
-                stop:0 #667eea, stop:1 #764ba2
-            );
-        """)
+        header.setObjectName("HeaderWidget")
         header_layout = QHBoxLayout()
         header_layout.setContentsMargins(30, 20, 30, 20)
 
         title = QLabel("🎓 School Puzzle Game")
-        title.setStyleSheet("""
-            color: white;
-            font-size: 28px;
-            font-weight: bold;
-        """)
+        title.setObjectName("Title")
         header_layout.addWidget(title)
 
         header_layout.addStretch()
 
         user_name = self.api_client.user.get("full_name") or self.api_client.user.get("username")
         user_label = QLabel(f"Angemeldet als: {user_name}")
-        user_label.setStyleSheet("""
-            color: white;
-            font-size: 16px;
-        """)
+        user_label.setObjectName("Muted")
         header_layout.addWidget(user_label)
 
+        # WebSocket Status
         self.ws_status_label = QLabel("●")
         self.ws_status_label.setStyleSheet("""
-            color: #95a5a6;
-            font-size: 24px;
+            QLabel {
+                color: rgba(255, 255, 255, 0.6);
+                font-size: 20px;
+                background: transparent;
+            }
         """)
         self.ws_status_label.setToolTip("WebSocket: Verbindung wird aufgebaut...")
         header_layout.addWidget(self.ws_status_label)
@@ -109,50 +101,37 @@ class MainWindow(QMainWindow):
         self.ws_status_timer.timeout.connect(self.update_ws_status)
         self.ws_status_timer.start(2000)
 
+        # Refresh Button
         self.refresh_button = QPushButton("🔄")
-        self.refresh_button.setStyleSheet("""
-            QPushButton {
-                background-color: rgba(255, 255, 255, 0.2);
-                color: white;
-                font-size: 18px;
-                border-radius: 8px;
-                padding: 8px 12px;
-            }
-            QPushButton:hover {
-                background-color: rgba(255, 255, 255, 0.3);
-            }
-        """)
+        self.refresh_button.setMinimumSize(40, 36)
+        self.refresh_button.setMaximumSize(40, 36)
         self.refresh_button.clicked.connect(self.manual_refresh)
         self.refresh_button.setToolTip("Raumliste aktualisieren")
         header_layout.addWidget(self.refresh_button)
 
+        # Admin Button (falls Admin)
         if self.api_client.user.get("username") == "admin":
             admin_btn = QPushButton("Admin Bereich")
+            admin_btn.setMinimumHeight(36)
             admin_btn.setStyleSheet("""
                 QPushButton {
-                    background-color: white;
-                    color: #27ae60;
-                    font-weight: bold;
-                    border-radius: 8px;
-                    padding: 10px 20px;
+                    background: #10B981;
+                    color: #FFFFFF;
+                    border: none;
+                    font-weight: 600;
+                    padding: 8px 16px;
+                    border-radius: 4px;
+                }
+                QPushButton:hover {
+                    background: #059669;
                 }
             """)
             admin_btn.clicked.connect(self.open_admin_panel)
             header_layout.addWidget(admin_btn)
 
+        # Logout Button
         logout_btn = QPushButton("Abmelden")
-        logout_btn.setStyleSheet("""
-            QPushButton {
-                background-color: white;
-                color: #667eea;
-                font-weight: bold;
-                border-radius: 8px;
-                padding: 10px 20px;
-            }
-            QPushButton:hover {
-                background-color: #f0f0f0;
-            }
-        """)
+        logout_btn.setMinimumHeight(36)
         logout_btn.clicked.connect(self.handle_logout)
         header_layout.addWidget(logout_btn)
 
@@ -171,10 +150,22 @@ class MainWindow(QMainWindow):
     def update_ws_status(self):
         """WebSocket-Status visuell anzeigen"""
         if hasattr(self.api_client, '_ws_connected') and self.api_client._ws_connected:
-            self.ws_status_label.setStyleSheet("color: #2ecc71; font-size: 24px;")
+            self.ws_status_label.setStyleSheet("""
+                QLabel {
+                    color: #10B981;
+                    font-size: 20px;
+                    background: transparent;
+                }
+            """)
             self.ws_status_label.setToolTip("WebSocket: Verbunden ✓ (Live-Updates aktiv)")
         else:
-            self.ws_status_label.setStyleSheet("color: #e74c3c; font-size: 24px;")
+            self.ws_status_label.setStyleSheet("""
+                QLabel {
+                    color: #EF4444;
+                    font-size: 20px;
+                    background: transparent;
+                }
+            """)
             self.ws_status_label.setToolTip("WebSocket: Nicht verbunden")
 
     def manual_refresh(self):
@@ -199,15 +190,21 @@ class MainWindow(QMainWindow):
                 child.widget().deleteLater()
 
         title = QLabel("Verfügbare Räume")
+        title.setObjectName("Title")
         title.setStyleSheet("""
-            font-size: 24px;
-            font-weight: bold;
-            color: #333;
-            margin-bottom: 20px;
+            QLabel {
+                font-size: 24px;
+                font-weight: 700;
+                color: #111827;
+                margin-bottom: 20px;
+                background: transparent;
+            }
         """)
         layout.addWidget(title)
 
         load_btn = QPushButton("📄 Quiz-JSON laden")
+        load_btn.setObjectName("GhostBtn")
+        load_btn.setMinimumHeight(40)
         load_btn.clicked.connect(self.load_quiz_json)
         layout.addWidget(load_btn)
 
@@ -216,10 +213,14 @@ class MainWindow(QMainWindow):
         if not rooms:
             no_rooms = QLabel("Keine Räume verfügbar.\nBitte wende dich an deinen Lehrer.")
             no_rooms.setAlignment(Qt.AlignCenter)
+            no_rooms.setObjectName("Muted")
             no_rooms.setStyleSheet("""
-                font-size: 16px;
-                color: #999;
-                padding: 50px;
+                QLabel {
+                    font-size: 16px;
+                    color: #9CA3AF;
+                    padding: 50px;
+                    background: transparent;
+                }
             """)
             layout.addWidget(no_rooms)
             layout.addStretch()
@@ -227,7 +228,7 @@ class MainWindow(QMainWindow):
 
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
-        scroll.setStyleSheet("QScrollArea { border: none; }")
+        scroll.setStyleSheet("QScrollArea { border: none; background: transparent; }")
 
         rooms_widget = QWidget()
         rooms_layout = QVBoxLayout()
@@ -245,16 +246,18 @@ class MainWindow(QMainWindow):
 
     def create_room_card(self, room):
         """Raumkarte erstellen"""
-        card = QWidget()
+        from PySide6.QtWidgets import QFrame
+
+        card = QFrame()
         card.setStyleSheet("""
-            QWidget {
-                background-color: white;
-                border: 2px solid #e0e0e0;
-                border-radius: 10px;
+            QFrame {
+                background: #FFFFFF;
+                border: 1px solid #E5E7EB;
+                border-radius: 4px;
                 padding: 20px;
             }
-            QWidget:hover {
-                border-color: #667eea;
+            QFrame:hover {
+                border-color: #4F46E5;
             }
         """)
 
@@ -264,9 +267,12 @@ class MainWindow(QMainWindow):
 
         name_label = QLabel(room["name"])
         name_label.setStyleSheet("""
-            font-size: 20px;
-            font-weight: bold;
-            color: #333;
+            QLabel {
+                font-size: 18px;
+                font-weight: 700;
+                color: #111827;
+                background: transparent;
+            }
         """)
         info_layout.addWidget(name_label)
 
@@ -274,17 +280,23 @@ class MainWindow(QMainWindow):
             desc_label = QLabel(room["description"])
             desc_label.setWordWrap(True)
             desc_label.setStyleSheet("""
-                font-size: 14px;
-                color: #666;
-                margin-top: 5px;
+                QLabel {
+                    font-size: 14px;
+                    color: #6B7280;
+                    margin-top: 5px;
+                    background: transparent;
+                }
             """)
             info_layout.addWidget(desc_label)
 
         time_label = QLabel(f"⏱️ Zeitlimit: {room['time_limit_minutes']} Minuten")
         time_label.setStyleSheet("""
-            font-size: 14px;
-            color: #888;
-            margin-top: 10px;
+            QLabel {
+                font-size: 14px;
+                color: #6B7280;
+                margin-top: 10px;
+                background: transparent;
+            }
         """)
         info_layout.addWidget(time_label)
 
@@ -293,16 +305,18 @@ class MainWindow(QMainWindow):
         start_btn = QPushButton("Raum betreten")
         start_btn.setStyleSheet("""
             QPushButton {
-                background: qlineargradient(
-                    x1:0, y1:0, x2:1, y2:0,
-                    stop:0 #667eea, stop:1 #764ba2
-                );
-                color: white;
-                font-size: 16px;
-                font-weight: bold;
-                border-radius: 8px;
-                padding: 15px 30px;
+                background: #4F46E5;
+                color: #FFFFFF;
+                border: none;
+                border-radius: 4px;
+                padding: 12px 24px;
+                font-size: 14px;
+                font-weight: 600;
                 min-width: 150px;
+                min-height: 44px;
+            }
+            QPushButton:hover {
+                background: #4338CA;
             }
         """)
         start_btn.clicked.connect(lambda: self.start_room(room))
@@ -312,11 +326,18 @@ class MainWindow(QMainWindow):
             edit_btn = QPushButton("Rätsel bearbeiten")
             edit_btn.setStyleSheet("""
                 QPushButton {
-                    background-color: #27ae60;
-                    color: white;
-                    font-weight: bold;
+                    background: #10B981;
+                    color: #FFFFFF;
+                    border: none;
+                    border-radius: 4px;
                     padding: 10px 20px;
-                    border-radius: 8px;
+                    font-size: 14px;
+                    font-weight: 600;
+                    min-width: 140px;
+                    min-height: 40px;
+                }
+                QPushButton:hover {
+                    background: #059669;
                 }
             """)
             edit_btn.clicked.connect(lambda _, r=room: self.open_puzzle_editor(r))
@@ -350,7 +371,7 @@ class MainWindow(QMainWindow):
             if child.widget():
                 child.widget().deleteLater()
 
-        # Prüfe ob H5P-Content vorhanden ist
+        # 🔥 NEU: Prüfe ob H5P-Content vorhanden ist
         has_h5p = any(p.get("h5p_content_id") for p in puzzles)
 
         if has_h5p:
@@ -360,10 +381,7 @@ class MainWindow(QMainWindow):
             print("📝 Nutze Standard Game Widget")
             game_widget = GameWidget(self.api_client, session, puzzles, self)
 
-        # NEU: Exit-Signal verbinden
         game_widget.session_completed.connect(self.load_rooms)
-        game_widget.exit_requested.connect(self.load_rooms)
-
         layout.addWidget(game_widget)
 
     def handle_logout(self):

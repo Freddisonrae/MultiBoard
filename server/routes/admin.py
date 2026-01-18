@@ -267,8 +267,10 @@ async def delete_puzzle(
     """
     Rätsel löschen (funktioniert für normale UND H5P-Rätsel)
     """
+    from pathlib import Path
+    import shutil
 
-    # Puzzle holen
+    # Puzzle MIT Room-Beziehung laden
     puzzle = db.query(models.Puzzle).filter(
         models.Puzzle.id == puzzle_id
     ).first()
@@ -279,12 +281,28 @@ async def delete_puzzle(
             detail="Puzzle nicht gefunden"
         )
 
+    # Room separat laden für Berechtigungsprüfung
+    room = db.query(models.Room).filter(
+        models.Room.id == puzzle.room_id
+    ).first()
+
+    if not room:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Zugehöriger Raum nicht gefunden"
+        )
+
     # Berechtigung prüfen - Raum muss dem Lehrer gehören
-    if puzzle.room.teacher_id != current_user.id:
+    if room.teacher_id != current_user.id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Keine Berechtigung für diesen Raum"
         )
+
+    # 🔥 FIX: Zuerst alle PuzzleResults löschen die auf dieses Puzzle verweisen
+    db.query(models.PuzzleResult).filter(
+        models.PuzzleResult.puzzle_id == puzzle_id
+    ).delete()
 
     # 🔥 WICHTIG: Wenn H5P-Rätsel, dann auch Content-Dateien löschen
     if puzzle.h5p_content_id:
