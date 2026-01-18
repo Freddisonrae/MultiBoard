@@ -191,6 +191,12 @@ async def submit_answer(
     db.commit()
     db.refresh(db_result)
 
+    # FIX: answer_json wieder als dict ausgeben
+    try:
+        db_result.answer_json = json.loads(db_result.answer_json) if db_result.answer_json else {}
+    except Exception:
+        db_result.answer_json = {}
+
     return db_result
 
 

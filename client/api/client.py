@@ -62,7 +62,17 @@ class APIClient:
             return False
 
     def get_available_rooms(self) -> List[Dict]:
-        """Holt verfügbare Räume (online + offline)"""
+        rooms: List[Dict] = []
+
+        # 1) Server-offline Räume (JSON auf Server)
+        try:
+            r = requests.get(f"{self.base_url}/api/quizzes/rooms", timeout=10)
+            if r.status_code == 200:
+                rooms += r.json()
+        except Exception as e:
+            print("Fehler /api/quizzes/rooms:", e)
+
+        # 2) DB/Online Räume
         try:
             response = requests.get(
                 f"{self.base_url}/api/game/available-rooms",
@@ -70,12 +80,26 @@ class APIClient:
                 timeout=10
             )
             if response.status_code == 200:
-                online = response.json()
-                return self.offline_rooms + online
-            return self.offline_rooms
+                rooms += response.json()
+            else:
+                print("available-rooms status:", response.status_code, response.text[:200])
         except Exception as e:
             print(f"Fehler beim Laden der Räume: {e}")
-            return self.offline_rooms
+
+        # 3) lokale Offline Räume (dein PC)
+        rooms = self.offline_rooms + rooms
+
+        # 4) Duplikate nach id entfernen
+        seen = set()
+        unique = []
+        for room in rooms:
+            rid = room.get("id")
+            if rid in seen:
+                continue
+            seen.add(rid)
+            unique.append(room)
+
+        return unique
 
     def start_session(self, room_id: int):
         """Startet eine neue Session"""
@@ -180,12 +204,20 @@ class APIClient:
     def register(self, username: str, password: str, is_admin: bool = False) -> bool:
         """Registriert neuen User"""
         try:
+            role = "teacher" if is_admin else "student"
+
             response = requests.post(
                 f"{self.base_url}/api/auth/register",
-                json={"username": username, "password": password, "is_admin": is_admin},
+                json={
+                    "username": username,
+                    "password": password,
+                    "role": role,
+                    "full_name": username
+                },
                 timeout=10
             )
             return response.status_code in (200, 201)
+
         except Exception as e:
             print(f"Registrierung fehlgeschlagen: {e}")
             return False
@@ -344,3 +376,47 @@ class APIClient:
         if self._ws:
             self._ws.close()
             self._ws_connected = False
+
+    def upload_quiz_json(self, filepath: str) -> bool:
+        try:
+            with open(filepath, "rb") as f:
+                files = {"file": (Path(filepath).name, f, "application/json")}
+                response = requests.post(
+                    f"{self.base_url}/api/quizzes/upload",
+                    headers={"Authorization": f"Bearer {self.token}"} if self.token else {},
+                    files=files,
+                    timeout=30
+                )
+
+            if response.status_code in (200, 201):
+                return True
+
+            print("UPLOAD STATUS:", response.status_code)
+            print("UPLOAD BODY:", response.text)
+            return False
+
+        except Exception as e:
+            print(f"Upload fehlgeschlagen: {e}")
+            return False
+
+    def register_student(self, username: str, password: str, full_name: str = "") -> bool:
+        """
+        Client-Registrierung: erstellt IMMER einen Schüler.
+        Server erwartet UserCreate: username, password, role, full_name
+        """
+        try:
+            payload = {
+                "username": username,
+                "password": password,
+                "role": "student",
+                "full_name": full_name
+            }
+            response = requests.post(
+                f"{self.base_url}/api/auth/register",
+                json=payload,
+                timeout=10
+            )
+            return response.status_code in (200, 201)
+        except Exception as e:
+            print(f"Registrierung fehlgeschlagen: {e}")
+            return False
