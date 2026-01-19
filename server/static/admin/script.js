@@ -1,4 +1,4 @@
-// Admin-Panel JavaScript - MultiRoom mit H5P Support
+// Admin-Panel JavaScript - MultiBoard mit H5P Support
 const API_BASE = window.location.origin;
 let authToken = null;
 let currentUser = null;

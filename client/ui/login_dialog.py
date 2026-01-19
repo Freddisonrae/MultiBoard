@@ -23,7 +23,7 @@ class LoginDialog(QDialog):
 
     def init_ui(self):
         """UI initialisieren"""
-        self.setWindowTitle("School Puzzle Game - Login")
+        self.setWindowTitle("MultiBoard - Login")
         self.setMinimumSize(520, 560)
         self.resize(520, 560)
 
@@ -40,7 +40,7 @@ class LoginDialog(QDialog):
         card_layout.setContentsMargins(40, 50, 40, 50)
 
         # Logo/Titel
-        title = QLabel("🎓 School Puzzle Game")
+        title = QLabel("MultiBoard")
         title.setObjectName("Title")
         title.setAlignment(Qt.AlignCenter)
         card_layout.addWidget(title)

@@ -26,7 +26,7 @@ class MainWindow(QMainWindow):
         self.api_client = api_client
         self.current_session = None
 
-        self.setWindowTitle("School Puzzle Game")
+        self.setWindowTitle("MultiBoard")
         self.setMinimumSize(1024, 768)
 
         self.ws_bridge = WebSocketSignalBridge()
@@ -74,7 +74,7 @@ class MainWindow(QMainWindow):
         header_layout = QHBoxLayout()
         header_layout.setContentsMargins(30, 20, 30, 20)
 
-        title = QLabel("🎓 School Puzzle Game")
+        title = QLabel("MultiBoard")
         title.setObjectName("Title")
         header_layout.addWidget(title)
 

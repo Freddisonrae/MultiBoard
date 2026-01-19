@@ -25,8 +25,8 @@ from server.routes import admin, game, websocket, h5p
 
 # FastAPI App erstellen
 app = FastAPI(
-    title="School Puzzle Game API",
-    description="MultiRoom",
+    title="MultiBoard API",
+    description="MultiBoard",
     version="1.0.0"
 )
 
@@ -75,7 +75,7 @@ async def startup_event():
 async def root():
     #Rootendpunkt
     return {
-        "message": "MultiRoom - Multi-Room Puzzle Game API",
+        "message": "MultiBoard - Multi-Board Puzzle Game API",
         "version": "1.0.0",
         "admin_panel": "/admin",
         "docs": "/docs"
