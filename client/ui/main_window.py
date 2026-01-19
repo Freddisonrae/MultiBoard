@@ -381,7 +381,13 @@ class MainWindow(QMainWindow):
             print("📝 Nutze Standard Game Widget")
             game_widget = GameWidget(self.api_client, session, puzzles, self)
 
+        # 🔥 Verbinde beide Signals!
         game_widget.session_completed.connect(self.load_rooms)
+
+        # 🔥 NEU: exit_requested Signal verbinden (nur H5P Widget hat das)
+        if hasattr(game_widget, 'exit_requested'):
+            game_widget.exit_requested.connect(self.load_rooms)
+
         layout.addWidget(game_widget)
 
     def handle_logout(self):
