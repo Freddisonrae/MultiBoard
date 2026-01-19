@@ -22,10 +22,10 @@ class H5PBridge(QObject):
         """Wird von JavaScript aufgerufen wenn H5P fertig ist"""
         try:
             answer_data = json.loads(answer_json)
-            print(f"📩 Antwort von H5P empfangen: {answer_data}")
+            print(f"Antwort von H5P empfangen: {answer_data}")
             self.answer_submitted.emit(answer_data)
         except Exception as e:
-            print(f"❌ Fehler beim Parsen der H5P-Antwort: {e}")
+            print(f"Fehler beim Parsen der H5P-Antwort: {e}")
 
 
 class H5PGameWidget(QWidget):
@@ -110,7 +110,7 @@ class H5PGameWidget(QWidget):
         self.content_layout.addLayout(header_layout)
 
         # Titel
-        title = QLabel("🎯 Wähle ein Rätsel aus")
+        title = QLabel("Wähle ein Rätsel aus")
         title.setAlignment(Qt.AlignCenter)
         title.setStyleSheet("""
             font-size: 28px;
@@ -261,7 +261,7 @@ class H5PGameWidget(QWidget):
             """)
             button_layout.addWidget(status_label)
 
-            retry_btn = QPushButton("🔄 Nochmal spielen")
+            retry_btn = QPushButton("Nochmal spielen")
             retry_btn.setStyleSheet("""
                 QPushButton {
                     background-color: #17a2b8;
@@ -347,7 +347,7 @@ class H5PGameWidget(QWidget):
         header_layout.addSpacing(20)
 
         # Rätsel-Titel
-        title_label = QLabel(f"🎯 {puzzle.get('title', f'Rätsel #{self.current_puzzle_index + 1}')}")
+        title_label = QLabel(f" {puzzle.get('title', f'Rätsel #{self.current_puzzle_index + 1}')}")
         title_label.setStyleSheet("""
             font-size: 18px;
             font-weight: bold;
@@ -428,7 +428,7 @@ class H5PGameWidget(QWidget):
         content_id = puzzle["h5p_content_id"]
         server_url = self.api_client.base_url.rstrip('/')
 
-        print(f"🎨 Lade H5P Content: {content_id}")
+        print(f"Lade H5P Content: {content_id}")
 
         html = f"""
 <!DOCTYPE html>
@@ -688,7 +688,7 @@ class H5PGameWidget(QWidget):
     @Slot(dict)
     def handle_h5p_answer(self, answer_data):
         """Verarbeitet Antwort von H5P - OHNE MessageBox"""
-        print(f"✅ Antwort verarbeitet: {answer_data}")
+        print(f"Antwort verarbeitet: {answer_data}")
 
         if hasattr(self, 'timer'):
             self.timer.stop()
@@ -720,7 +720,7 @@ class H5PGameWidget(QWidget):
         """Zeigt Glückwunsch-Nachricht wenn alle Rätsel gelöst sind"""
         QMessageBox.information(
             self,
-            "Alle Rätsel gelöst! 🎉",
+            "Alle Rätsel gelöst!",
             f"Gratuliere! Du hast alle {len(self.puzzles)} Rätsel erfolgreich gelöst!\n\n"
             "Du kannst jetzt zur Raumliste zurückkehren oder einzelne Rätsel nochmal spielen."
         )

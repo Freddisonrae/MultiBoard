@@ -1,5 +1,5 @@
 """
-Haupt-Einstiegspunkt der Desktop-App - Modernes Theme
+Haupt-Einstiegspunkt der Desktop-App
 """
 import sys
 from PySide6.QtWidgets import QApplication
@@ -17,11 +17,8 @@ def main():
     app = QApplication(sys.argv)
     app.setApplicationName("MultiBoard")
 
-    # ✅ Modernes Theme anwenden
     app.setStyleSheet(APP_QSS)
 
-    # High-DPI-Support für moderne Displays
-    app.setAttribute(Qt.AA_EnableHighDpiScaling)
 
     # API-Client erstellen
     api_client = APIClient(base_url="http://127.0.0.1:8000")

@@ -446,7 +446,7 @@ async function handleH5PUpload(e) {
 
         const result = await response.json();
 
-        document.getElementById('upload-status').textContent = '✅ Upload erfolgreich!';
+        document.getElementById('upload-status').textContent = 'Upload erfolgreich!';
 
         // Modal schließen und Puzzle-Liste neu laden
         setTimeout(() => {

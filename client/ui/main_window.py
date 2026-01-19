@@ -46,7 +46,7 @@ class MainWindow(QMainWindow):
             print("✅ WebSocket-Verbindung wird aufgebaut...")
 
         except Exception as e:
-            print(f"⚠️ WebSocket-Fehler: {e}")
+            print(f"WebSocket-Fehler: {e}")
 
     def on_rooms_updated_from_websocket(self, rooms):
         """Wird aufgerufen wenn WebSocket meldet: Räume haben sich geändert"""
@@ -202,7 +202,7 @@ class MainWindow(QMainWindow):
         """)
         layout.addWidget(title)
 
-        load_btn = QPushButton("📄 Quiz-JSON laden")
+        load_btn = QPushButton("Quiz-JSON laden")
         load_btn.setObjectName("GhostBtn")
         load_btn.setMinimumHeight(40)
         load_btn.clicked.connect(self.load_quiz_json)
@@ -289,7 +289,7 @@ class MainWindow(QMainWindow):
             """)
             info_layout.addWidget(desc_label)
 
-        time_label = QLabel(f"⏱️ Zeitlimit: {room['time_limit_minutes']} Minuten")
+        time_label = QLabel(f" Zeitlimit: {room['time_limit_minutes']} Minuten")
         time_label.setStyleSheet("""
             QLabel {
                 font-size: 14px;
@@ -371,20 +371,20 @@ class MainWindow(QMainWindow):
             if child.widget():
                 child.widget().deleteLater()
 
-        # 🔥 NEU: Prüfe ob H5P-Content vorhanden ist
+        #
         has_h5p = any(p.get("h5p_content_id") for p in puzzles)
 
         if has_h5p:
-            print("🎨 Nutze H5P Game Widget")
+            print("Nutze H5P Game Widget")
             game_widget = H5PGameWidget(self.api_client, session, puzzles, self)
         else:
-            print("📝 Nutze Standard Game Widget")
+            print("Nutze Standard Game Widget")
             game_widget = GameWidget(self.api_client, session, puzzles, self)
 
-        # 🔥 Verbinde beide Signals!
+        # Verbinde beide Signals
         game_widget.session_completed.connect(self.load_rooms)
 
-        # 🔥 NEU: exit_requested Signal verbinden (nur H5P Widget hat das)
+        #  exit_requested Signal verbinden (nur H5P Widget hat das)
         if hasattr(game_widget, 'exit_requested'):
             game_widget.exit_requested.connect(self.load_rooms)
 

@@ -61,12 +61,6 @@ async def get_current_user(
         authorization: Optional[str] = Header(None),
         db: Session = Depends(get_db)
 ):
-    """
-    🔥 FIXED: Holt aktuellen Benutzer aus JWT Token
-    Unterstützt beide Token-Formate:
-    - Authorization: Bearer <token> (Admin-Panel)
-    - Authorization: <token> (Desktop-Client)
-    """
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Ungültige Authentifizierung",
@@ -81,7 +75,7 @@ async def get_current_user(
     if authorization.startswith("Bearer "):
         token = authorization.replace("Bearer ", "")
 
-    print(f"🔐 Auth-Token empfangen: {token[:20]}...")  # DEBUG
+    print(f"Auth-Token empfangen: {token[:20]}...")  # DEBUG
 
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
@@ -90,18 +84,18 @@ async def get_current_user(
             raise credentials_exception
 
         user_id = int(user_id)
-        print(f"✅ Token dekodiert: User-ID={user_id}")  # DEBUG
+        print(f"Token dekodiert: User-ID={user_id}")  # DEBUG
 
     except JWTError as e:
-        print(f"❌ JWT-Fehler: {e}")  # DEBUG
+        print(f"JWT-Fehler: {e}")  # DEBUG
         raise credentials_exception
 
     user = db.query(models.User).filter(models.User.id == user_id).first()
     if user is None:
-        print(f"❌ User mit ID {user_id} nicht gefunden")  # DEBUG
+        print(f"User mit ID {user_id} nicht gefunden")  # DEBUG
         raise credentials_exception
 
-    print(f"✅ User authentifiziert: {user.username} (Role: {user.role})")  # DEBUG
+    print(f"User authentifiziert: {user.username} (Role: {user.role})")  # DEBUG
     return user
 
 

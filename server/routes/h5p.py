@@ -17,15 +17,10 @@ from server.auth import get_current_user
 
 router = APIRouter(prefix="/api/admin/h5p", tags=["h5p"])
 
-# 🔥 FIX: Absoluter Pfad - findet immer das richtige Verzeichnis
+# Absoluter Pfad, einfacher fürs hochladen
 SCRIPT_DIR = Path(__file__).resolve().parent.parent  # server/routes/h5p.py -> server/
 H5P_CONTENT_DIR = SCRIPT_DIR / "static" / "h5p-content"
 H5P_CONTENT_DIR.mkdir(parents=True, exist_ok=True)
-
-# Debug-Output beim Import
-print(f"📁 H5P Routes geladen")
-print(f"   Script Dir: {SCRIPT_DIR}")
-print(f"   Content Dir: {H5P_CONTENT_DIR.absolute()}")
 
 
 @router.post("/upload")
@@ -73,7 +68,7 @@ async def upload_h5p(
     content_id = str(uuid.uuid4())
     content_path = H5P_CONTENT_DIR / content_id
 
-    print(f"📤 H5P Upload gestartet:")
+    print(f" H5P Upload gestartet:")
     print(f"   Datei: {file.filename}")
     print(f"   Content ID: {content_id}")
     print(f"   Ziel-Pfad: {content_path.absolute()}")
@@ -102,7 +97,7 @@ async def upload_h5p(
 
         # Entpackte Dateien auflisten (Debug)
         extracted_files = list(content_path.rglob('*'))
-        print(f"   📂 Entpackte Dateien ({len(extracted_files)}):")
+        print(f" Entpackte Dateien ({len(extracted_files)}):")
         for f in extracted_files[:10]:  # Nur erste 10 zeigen
             print(f"      - {f.relative_to(content_path)}")
 
@@ -117,7 +112,7 @@ async def upload_h5p(
         with open(h5p_json_path, 'r', encoding='utf-8') as f:
             h5p_metadata = json.load(f)
 
-        print(f"   ✅ h5p.json gelesen: {h5p_metadata.get('title', 'Unbenannt')}")
+        print(f"h5p.json gelesen: {h5p_metadata.get('title', 'Unbenannt')}")
 
         # content.json lesen für die eigentlichen Inhalte
         content_json_path = content_path / "content" / "content.json"
@@ -160,8 +155,8 @@ async def upload_h5p(
         db.commit()
         db.refresh(puzzle)
 
-        print(f"   ✅ Puzzle erstellt: ID={puzzle.id}, Typ={puzzle_type}")
-        print(f"   ✅ Upload abgeschlossen!\n")
+        print(f" Puzzle erstellt: ID={puzzle.id}, Typ={puzzle_type}")
+        print(f" Upload abgeschlossen!\n")
 
         return {
             "success": True,
@@ -193,7 +188,7 @@ async def upload_h5p(
         # Cleanup bei Fehler
         if content_path.exists():
             shutil.rmtree(content_path)
-        print(f"   ❌ Fehler: {str(e)}")
+        print(f"   Fehler: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Fehler beim Verarbeiten der H5P-Datei: {str(e)}"
@@ -274,7 +269,7 @@ async def delete_h5p_content(
         content_path = H5P_CONTENT_DIR / puzzle.h5p_content_id
         if content_path.exists():
             shutil.rmtree(content_path)
-            print(f"   🗑️ H5P Content gelöscht: {content_path.absolute()}")
+            print(f" H5P Content gelöscht: {content_path.absolute()}")
 
     # Puzzle aus DB löschen
     db.delete(puzzle)

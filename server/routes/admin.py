@@ -72,7 +72,7 @@ async def create_room(
         "room_id": db_room.id,
         "room_name": db_room.name
     })
-    print(f"📢 Broadcast gesendet: Raum '{db_room.name}' erstellt")
+    print(f" Broadcast gesendet: Raum '{db_room.name}' erstellt")
 
     return db_room
 
@@ -314,9 +314,9 @@ async def delete_puzzle(
 
             if content_path.exists():
                 shutil.rmtree(content_path)
-                print(f"   🗑️ H5P Content gelöscht: {content_path}")
+                print(f"H5P Content gelöscht: {content_path}")
         except Exception as e:
-            print(f"   ⚠️ Fehler beim Löschen von H5P Content: {e}")
+            print(f" Fehler beim Löschen von H5P Content: {e}")
             # Trotzdem weitermachen und Puzzle aus DB löschen
 
     # Puzzle aus Datenbank löschen
@@ -457,7 +457,7 @@ async def approve_teacher(
         message = f"✅ Lehrer '{teacher.full_name}' wurde freigeschaltet"
     else:
         db.delete(teacher)
-        message = f"❌ Registrierung von '{teacher.full_name}' wurde abgelehnt"
+        message = f"Registrierung von '{teacher.full_name}' wurde abgelehnt"
 
     db.commit()
 

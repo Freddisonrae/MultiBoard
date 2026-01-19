@@ -25,12 +25,12 @@ async def get_available_rooms(
 ):
     """Verfügbare Räume für User abrufen"""
 
-    print(f"🔍 User: {current_user.username}, Role: {current_user.role}, ID: {current_user.id}")
+    print(f" User: {current_user.username}, Role: {current_user.role}, ID: {current_user.id}")
 
     # Admin sieht ALLE Räume
     if current_user.role == "admin":
         rooms = db.query(models.Room).all()
-        print(f"📋 Admin sieht alle Räume: {len(rooms)} gefunden")
+        print(f" Admin sieht alle Räume: {len(rooms)} gefunden")
         return rooms
 
     # Lehrer sehen alle ihre Räume
@@ -41,12 +41,11 @@ async def get_available_rooms(
         print(f"📋 Lehrer sieht eigene Räume: {len(rooms)} gefunden")
         return rooms
 
-    # 🔥 GEÄNDERT: Schüler sehen ALLE AKTIVEN Räume (nicht nur zugewiesene)
     elif current_user.role == "student":
         rooms = db.query(models.Room).filter(
             models.Room.is_active == True
         ).all()
-        print(f"📋 Schüler sieht ALLE aktiven Räume: {len(rooms)} gefunden")
+        print(f" Schüler sieht ALLE aktiven Räume: {len(rooms)} gefunden")
         for room in rooms:
             print(f"   - {room.name} (ID: {room.id})")
         return rooms
@@ -63,22 +62,22 @@ async def start_game_session(
 ):
     """Neue Spiel-Session starten"""
 
-    print(f"🎮 Session-Start: User={current_user.username}, Role={current_user.role}, Room={room_id}")
+    print(f" Session-Start: User={current_user.username}, Role={current_user.role}, Room={room_id}")
 
     # Raum muss existieren
     room = db.query(models.Room).filter(models.Room.id == room_id).first()
     if not room:
-        print(f"❌ Raum {room_id} nicht gefunden")
+        print(f" Raum {room_id} nicht gefunden")
         raise HTTPException(status_code=404, detail="Raum nicht gefunden")
 
-    # 🔥 GEÄNDERT: Für Schüler nur prüfen ob Raum aktiv ist (KEINE Zuweisung mehr!)
+    #  GEÄNDERT: Für Schüler nur prüfen ob Raum aktiv ist (KEINE Zuweisung mehr!)
     if current_user.role == "student":
         if not room.is_active:
-            print(f"❌ Raum {room_id} ist nicht aktiv")
+            print(f" Raum {room_id} ist nicht aktiv")
             raise HTTPException(status_code=403, detail="Raum ist nicht aktiv")
-        print(f"✅ Raum ist aktiv, Schüler darf beitreten")
+        print(f"Raum ist aktiv, Schüler darf beitreten")
 
-    # Prüfen ob bereits aktive Session existiert
+    # exestiert Session ?
     existing_session = db.query(models.GameSession).filter(
         models.GameSession.room_id == room_id,
         models.GameSession.student_id == current_user.id,
@@ -86,7 +85,7 @@ async def start_game_session(
     ).first()
 
     if existing_session:
-        print(f"♻️ Bestehende Session gefunden: {existing_session.id}")
+        print(f" Bestehende Session gefunden: {existing_session.id}")
         return existing_session
 
     # Neue Session erstellen
@@ -98,7 +97,7 @@ async def start_game_session(
     db.commit()
     db.refresh(session)
 
-    print(f"✅ Neue Session erstellt: ID={session.id}")
+    print(f" Neue Session erstellt: ID={session.id}")
     return session
 
 
@@ -124,7 +123,7 @@ async def get_session_puzzles(
         models.Puzzle.room_id == session.room_id
     ).order_by(models.Puzzle.order_index).all()
 
-    print(f"📝 {len(puzzles)} Rätsel für Session {session_id} geladen")
+    print(f"{len(puzzles)} Rätsel für Session {session_id} geladen")
     return puzzles
 
 
@@ -171,7 +170,7 @@ async def submit_answer(
         if is_correct:
             points_earned = puzzle.points
 
-    print(f"📊 Antwort: Puzzle={puzzle.id}, Korrekt={is_correct}, Punkte={points_earned}")
+    print(f"Antwort: Puzzle={puzzle.id}, Korrekt={is_correct}, Punkte={points_earned}")
 
     # Ergebnis speichern
     db_result = models.PuzzleResult(
@@ -259,6 +258,6 @@ async def complete_session(
 
     db.commit()
 
-    print(f"✅ Session {session_id} abgeschlossen: {session.total_score} Punkte")
+    print(f"Session {session_id} abgeschlossen: {session.total_score} Punkte")
 
     return {"message": "Session abgeschlossen", "total_score": session.total_score}

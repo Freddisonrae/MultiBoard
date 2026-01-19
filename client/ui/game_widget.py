@@ -241,13 +241,13 @@ class GameWidget(QWidget):
             if result.get("is_correct"):
                 QMessageBox.information(
                     self,
-                    "Richtig! ✅",
+                    "Richtig!",
                     f"Sehr gut! Du hast {result['points_earned']} Punkte erhalten."
                 )
             else:
                 QMessageBox.warning(
                     self,
-                    "Leider falsch ❌",
+                    "Leider falsch",
                     "Das war nicht die richtige Antwort. Beim nächsten Mal klappt's!"
                 )
 
@@ -270,7 +270,7 @@ class GameWidget(QWidget):
 
         QMessageBox.information(
             self,
-            "Geschafft! 🎉",
+            "Geschafft!",
             f"Du hast alle Rätsel gelöst!\n\nGesamtpunktzahl: {self.score}"
         )
 
