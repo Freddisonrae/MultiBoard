@@ -269,7 +269,6 @@ class APIClient:
             "_puzzles": puzzles
         }
 
-        # dedupe: gleiche Datei => ersetzen
         self.offline_rooms = [r for r in self.offline_rooms if r.get("_source") != room["_source"]]
         self.offline_rooms.insert(0, room)
 
@@ -277,7 +276,6 @@ class APIClient:
 
     def get_session_puzzles(self, session_id: int) -> List[Dict]:
         """Holt Rätsel für Session"""
-        # OFFLINE
         if session_id in self._offline_sessions:
             return self._offline_sessions[session_id]["puzzles"]
 
@@ -310,10 +308,10 @@ class APIClient:
         ws_url += "/ws/rooms"
 
         def on_message(ws, message):
-            """Wird aufgerufen wenn Nachricht vom Server kommt"""
+            #Nachricht kommt vom Server
             try:
                 data = json.loads(message)
-                print(f"📨 WebSocket Nachricht: {data}")
+                print(f"WebSocket Nachricht: {data}")
 
                 if data.get("type") == "rooms_updated":
                     # Räume neu laden
@@ -328,17 +326,17 @@ class APIClient:
 
         def on_error(ws, error):
             """Bei Fehlern"""
-            print(f"❌ WebSocket Fehler: {error}")
+            print(f" WebSocket Fehler: {error}")
             self._ws_connected = False
 
         def on_close(ws, close_status_code, close_msg):
             """Verbindung geschlossen"""
-            print("🔌 WebSocket geschlossen")
+            print(" WebSocket geschlossen")
             self._ws_connected = False
 
         def on_open(ws):
             """Verbindung hergestellt"""
-            print("✅ WebSocket verbunden!")
+            print("WebSocket verbunden!")
             self._ws_connected = True
 
             # Optional: Keep-Alive senden
@@ -363,7 +361,7 @@ class APIClient:
             on_open=on_open
         )
 
-        # In eigenem Thread starten (blockiert nicht!)
+        # In eigenem Thread starten, damit es nicht blockiert
         def run_websocket():
             self._ws.run_forever()
 

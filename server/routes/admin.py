@@ -52,11 +52,10 @@ async def get_rooms(
 
 @router.post("/rooms", response_model=Room)
 async def create_room(
-        room: RoomCreate,
+        room: RoomCreate, # Daten, die man in einer Request bekommt
         current_user: models.User = Depends(get_current_teacher),
         db: Session = Depends(get_db)
 ):
-    """Neuen Raum erstellen"""
     db_room = models.Room(
         **room.dict(),
         teacher_id=current_user.id
@@ -65,7 +64,7 @@ async def create_room(
     db.commit()
     db.refresh(db_room)
 
-    # WebSocket Broadcast an alle Clients
+    #Schickt an alle Clients
     await manager.broadcast({
         "type": "rooms_updated",
         "action": "room_created",
@@ -165,7 +164,6 @@ async def activate_room(
     return {"is_active": db_room.is_active}
 
 
-# ==================== PUZZLES ====================
 
 @router.get("/rooms/{room_id}/puzzles", response_model=List[PuzzleResponse])
 async def get_puzzles(
@@ -298,13 +296,10 @@ async def delete_puzzle(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Keine Berechtigung für diesen Raum"
         )
-
-    # 🔥 FIX: Zuerst alle PuzzleResults löschen die auf dieses Puzzle verweisen
     db.query(models.PuzzleResult).filter(
         models.PuzzleResult.puzzle_id == puzzle_id
     ).delete()
 
-    # 🔥 WICHTIG: Wenn H5P-Rätsel, dann auch Content-Dateien löschen
     if puzzle.h5p_content_id:
         try:
             # H5P Content-Verzeichnis löschen
@@ -337,7 +332,6 @@ async def delete_puzzle(
     }
 
 
-# ==================== STUDENTS ====================
 
 @router.post("/rooms/{room_id}/assign-student")
 async def assign_student_to_room(
@@ -454,7 +448,7 @@ async def approve_teacher(
     if approve:
         teacher.is_active = True
         teacher.is_approved = True
-        message = f"✅ Lehrer '{teacher.full_name}' wurde freigeschaltet"
+        message = f"Lehrer '{teacher.full_name}' wurde freigeschaltet"
     else:
         db.delete(teacher)
         message = f"Registrierung von '{teacher.full_name}' wurde abgelehnt"

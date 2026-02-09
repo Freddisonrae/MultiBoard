@@ -44,7 +44,7 @@ STATIC_DIR = os.path.join(os.path.dirname(__file__), "static", "admin")
 if os.path.exists(STATIC_DIR):
     app.mount("/admin", StaticFiles(directory=STATIC_DIR, html=True), name="admin")
 else:
-    print("⚠️  Admin-Panel nicht gefunden (static/admin fehlt)")
+    print("⚠Admin-Panel nicht gefunden (static/admin fehlt)")
 
 # H5P Content verfügbar machen
 H5P_CONTENT_DIR = os.path.join(os.path.dirname(__file__), "static", "h5p-content")
@@ -149,7 +149,7 @@ async def register(
 @app.get("/api/health")
 async def health_check():
     """Health-Check-Endpunkt"""
-    return {"status": "healthy", "service": "school-puzzle-game"}
+    return {"status": "healthy", "service": "MultiBoard"}
 
 
 

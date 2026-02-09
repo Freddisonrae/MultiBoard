@@ -17,16 +17,15 @@ class ConnectionManager:
         """Neue Verbindung hinzufügen"""
         await websocket.accept()  # Verbindung akzeptieren
         self.active_connections.append(websocket)
-        print(f"✅ Neuer Client verbunden. Gesamt: {len(self.active_connections)}")
+        print(f"Neuer Client verbunden. Gesamt: {len(self.active_connections)}")
 
     async def disconnect(self, websocket: WebSocket):
         """Verbindung entfernen"""
         if websocket in self.active_connections:
             self.active_connections.remove(websocket)
-        print(f"❌ Client getrennt. Noch: {len(self.active_connections)}")
+        print(f"Client getrennt. Noch: {len(self.active_connections)}")
 
     async def broadcast(self, message: Dict):
-        """Nachricht an ALLE verbundenen Clients senden"""
         dead_connections = []
 
         for connection in self.active_connections:
@@ -36,7 +35,7 @@ class ConnectionManager:
                 print(f"Fehler beim Senden: {e}")
                 dead_connections.append(connection)
 
-        # Tote Verbindungen aufräumen
+        # tote Verbindungen cutten
         for dead in dead_connections:
             if dead in self.active_connections:
                 self.active_connections.remove(dead)
@@ -54,10 +53,8 @@ async def websocket_rooms_endpoint(websocket: WebSocket):
     try:
         # Endlos-Schleife: warte auf Nachrichten vom Client
         while True:
-            # Client kann "ping" senden als Keep-Alive
+            # Client kann "ping" senden
             data = await websocket.receive_text()
-
-            # Optional: auf bestimmte Nachrichten reagieren
             if data == "get_rooms":
                 await websocket.send_json({
                     "type": "rooms_update_request",

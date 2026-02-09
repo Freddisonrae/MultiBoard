@@ -1,25 +1,21 @@
-// Admin-Panel JavaScript - MultiBoard mit H5P Support
+
 const API_BASE = window.location.origin;
 let authToken = null;
 let currentUser = null;
 let currentRoomId = null;
 
-// Initialisierung
+// Initialisierung der App
 document.addEventListener('DOMContentLoaded', () => {
     initApp();
 });
 
 function initApp() {
-    // Tab-Umschalter für Login/Register
+    // Tab-Umschalter
     document.querySelectorAll('.auth-tab').forEach(tab => {
         tab.addEventListener('click', () => switchAuthMode(tab.dataset.mode));
     });
-
-    // Event Listeners für Formulare
     document.getElementById('login-form').addEventListener('submit', handleLogin);
     document.getElementById('register-form').addEventListener('submit', handleRegister);
-
-    // Dashboard-Event-Listeners
     const logoutBtn = document.getElementById('logout-btn');
     if (logoutBtn) {
         logoutBtn.addEventListener('click', handleLogout);
@@ -34,43 +30,33 @@ function initApp() {
     if (createPuzzleBtn) {
         createPuzzleBtn.addEventListener('click', showCreatePuzzleModal);
     }
-
-    // H5P Upload Button
     const uploadH5pBtn = document.getElementById('upload-h5p-btn');
     if (uploadH5pBtn) {
         uploadH5pBtn.addEventListener('click', showH5PUploadModal);
     }
-
-    // Schüler erstellen Button - FIXED
     const createStudentBtn = document.getElementById('create-student-btn');
     if (createStudentBtn) {
         createStudentBtn.addEventListener('click', showCreateStudentModal);
     }
-
     const modalClose = document.getElementById('modal-close');
     if (modalClose) {
         modalClose.addEventListener('click', closeModal);
     }
-
-    // H5P Preview Modal schließen
     const h5pPreviewClose = document.getElementById('h5p-preview-close');
     if (h5pPreviewClose) {
         h5pPreviewClose.addEventListener('click', closeH5PPreview);
     }
 
-    // Tab-Switching im Dashboard
     document.querySelectorAll('.tab').forEach(tab => {
         tab.addEventListener('click', () => switchTab(tab.dataset.tab));
     });
-
-    // Token aus localStorage laden
+    // Hier wird Token aus dem Local Storage geladen
     const savedToken = localStorage.getItem('authToken');
     const savedUser = localStorage.getItem('currentUser');
-
     if (savedToken && savedUser) {
         authToken = savedToken;
         currentUser = JSON.parse(savedUser);
-        showDashboard();
+        showDashboard(); //Beide Funktionen die Dashboard und Rooms zeigen
         loadRooms();
     }
 }
@@ -99,7 +85,7 @@ async function handleLogin(e) {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ username, password })
-        });
+        });  // HTTP Anfrage
 
         const data = await response.json();
 
@@ -179,7 +165,7 @@ async function handleRegister(e) {
         }
 
         showMessage(
-            '✅ Registrierung erfolgreich! Sie können sich jetzt anmelden.',
+            'Registrierung erfolgreich! Sie können sich jetzt anmelden.',
             'success'
         );
 

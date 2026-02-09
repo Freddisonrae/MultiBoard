@@ -35,26 +35,24 @@ class MainWindow(QMainWindow):
         self.init_ui()
         self.load_rooms()
         self.connect_websocket()
-
+#Hier wird Verbindung aufgebaut
     def connect_websocket(self):
-        """WebSocket-Verbindung für Live-Updates starten"""
         try:
             def on_ws_rooms_updated(rooms):
                 self.ws_bridge.rooms_updated.emit(rooms)
-
-            self.api_client.connect_websocket(on_ws_rooms_updated)
-            print("✅ WebSocket-Verbindung wird aufgebaut...")
+            #Hier wird Verbindung geöffnet
+            self.api_client.connect_websocket(on_ws_rooms_updated) #Bei neuen Daten werden Rooms geupdated
+            print(" WebSocket-Verbindung wird aufgebaut...")
 
         except Exception as e:
             print(f"WebSocket-Fehler: {e}")
 
     def on_rooms_updated_from_websocket(self, rooms):
-        """Wird aufgerufen wenn WebSocket meldet: Räume haben sich geändert"""
-        print(f"🔄 WebSocket-Update empfangen: {len(rooms)} Räume")
+        print(f" WebSocket-Update empfangen: {len(rooms)} Räume")
 
         if hasattr(self, 'refresh_button'):
             original_text = self.refresh_button.text()
-            self.refresh_button.setText("✨")
+            self.refresh_button.setText("Refresh")
             QTimer.singleShot(500, lambda: self.refresh_button.setText(original_text))
 
         self.load_rooms()

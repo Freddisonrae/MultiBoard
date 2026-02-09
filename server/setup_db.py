@@ -10,7 +10,7 @@ load_dotenv()
 DB_USER = os.getenv("DB_USER")
 DB_PASSWORD = os.getenv("DB_PASSWORD")
 DB_HOST = os.getenv("DB_HOST", "localhost")
-DB_NAME = os.getenv("DB_NAME")  # erwartet z. B. "abiprj25"
+DB_NAME = os.getenv("DB_NAME")  # "abiprj25"
 SCHEMA_PATH = os.path.join(os.path.dirname(__file__), '..', 'database', 'schema.sql')
 
 if not DB_NAME:

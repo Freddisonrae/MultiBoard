@@ -13,7 +13,7 @@ from .database import get_db
 from . import models
 
 # Sicherheits-Konfiguration
-SECRET_KEY = "dein-geheimer-schluessel-hier-aendern-in-produktion"
+SECRET_KEY = "Schildkröten123"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 480  # 8 Stunden
 
@@ -22,17 +22,14 @@ security = HTTPBearer()
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Verifiziert Passwort gegen Hash"""
     return pwd_context.verify(plain_password, hashed_password)
 
 
 def get_password_hash(password: str) -> str:
-    """Erstellt Passwort-Hash"""
     return pwd_context.hash(password)
 
-
+#Macht einen Token der nach einer gewissen Zeit abläuft
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
-    """Erstellt JWT Access Token"""
     to_encode = data.copy()
     if expires_delta:
         expire = datetime.utcnow() + expires_delta
@@ -43,9 +40,8 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
-
+#Prüft ob Daten korrekt sind
 def authenticate_user(db: Session, username: str, password: str):
-    """Authentifiziert Benutzer"""
     user = db.query(models.User).filter(models.User.username == username).first()
 
     if not user:
@@ -70,7 +66,6 @@ async def get_current_user(
     if not authorization:
         raise credentials_exception
 
-    # Token extrahieren
     token = authorization
     if authorization.startswith("Bearer "):
         token = authorization.replace("Bearer ", "")
