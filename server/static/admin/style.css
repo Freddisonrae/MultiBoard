@@ -769,3 +769,100 @@ header h1::before {
 .font-mono {
     font-family: 'Courier New', monospace;
 }
+/* ========== Leaderboard ==========
+   Diese Styles ans Ende von style.css hinzufügen
+*/
+
+.leaderboard-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+.leaderboard-table thead tr {
+    background: var(--bg-hover);
+    border-bottom: 2px solid var(--border);
+}
+
+.leaderboard-table th {
+    padding: 12px 16px;
+    text-align: left;
+    font-weight: 700;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-secondary);
+}
+
+.leaderboard-table td {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+}
+
+.leaderboard-table tbody tr {
+    transition: background 0.15s;
+}
+
+.leaderboard-table tbody tr:hover {
+    background: var(--bg-hover);
+}
+
+.leaderboard-table tbody tr.top-rank {
+    background: #FFFBEB;
+}
+
+.leaderboard-table tbody tr.top-rank:hover {
+    background: #FEF3C7;
+}
+
+.rank-cell {
+    font-size: 22px;
+    text-align: center;
+    width: 60px;
+}
+
+.name-cell strong {
+    display: block;
+    font-size: 15px;
+    color: var(--text-primary);
+}
+
+.username-label {
+    font-size: 12px;
+    color: var(--text-light);
+}
+
+.score-cell {
+    font-weight: 600;
+    font-size: 15px;
+    color: var(--text-secondary);
+    text-align: center;
+}
+
+.score-cell.correct {
+    color: var(--secondary);
+    font-size: 18px;
+}
+
+.pct-bar-wrap {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.pct-bar {
+    height: 8px;
+    background: var(--primary);
+    border-radius: 999px;
+    min-width: 4px;
+    flex-shrink: 0;
+    max-width: 120px;
+    transition: width 0.4s ease;
+}
+
+.pct-bar-wrap span {
+    font-size: 13px;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}

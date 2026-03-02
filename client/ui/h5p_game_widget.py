@@ -22,7 +22,6 @@ class H5PBridge(QObject):
         """Wird von JavaScript aufgerufen wenn H5P fertig ist"""
         try:
             answer_data = json.loads(answer_json)
-            print(f"Antwort von H5P empfangen: {answer_data}")
             self.answer_submitted.emit(answer_data)
         except Exception as e:
             print(f"Fehler beim Parsen der H5P-Antwort: {e}")
@@ -428,8 +427,6 @@ class H5PGameWidget(QWidget):
         content_id = puzzle["h5p_content_id"]
         server_url = self.api_client.base_url.rstrip('/')
 
-        print(f"Lade H5P Content: {content_id}")
-
         html = f"""
 <!DOCTYPE html>
 <html>
@@ -517,7 +514,7 @@ class H5PGameWidget(QWidget):
             }};
 
             script.onerror = function() {{
-                document.getElementById('h5p-content').innerHTML = 
+                document.getElementById('h5p-content').innerHTML =
                     '<div class="error">H5P konnte nicht geladen werden.<br>Bitte prüfe die Internetverbindung.</div>';
             }};
 
@@ -545,10 +542,26 @@ class H5PGameWidget(QWidget):
                 H5P.externalDispatcher.on('xAPI', function(event) {{
                     const verb = event.getVerb();
 
-                    if (verb === 'answered' || verb === 'completed') {{
+                    // -------------------------------------------------------
+                    // FIX: SubContent-Events (Einzelfragen) herausfiltern.
+                    // Nur das finale Event des Haupt-H5P hat KEINE subContentId.
+                    // -------------------------------------------------------
+                    const extensions = event.data &&
+                                       event.data.statement &&
+                                       event.data.statement.object &&
+                                       event.data.statement.object.definition &&
+                                       event.data.statement.object.definition.extensions;
+
+                    const isSubContent = extensions &&
+                        extensions['http://h5p.org/x-api/h5p-subContentId'];
+
+                    if (isSubContent) return; // Einzelfrage-Event ignorieren
+
+                    // Nur finale "completed" oder "answered" Events vom Haupt-H5P
+                    if (verb === 'completed' || verb === 'answered') {{
                         const score = event.getScore();
                         const maxScore = event.getMaxScore();
-                        const success = score === maxScore;
+                        const success = score !== null && maxScore !== null && score === maxScore;
 
                         const answer = {{
                             score: score,
@@ -687,8 +700,17 @@ class H5PGameWidget(QWidget):
 
     @Slot(dict)
     def handle_h5p_answer(self, answer_data):
-        """Verarbeitet Antwort von H5P - OHNE MessageBox"""
-        print(f"Antwort verarbeitet: {answer_data}")
+        """Verarbeitet Antwort von H5P - nur gelöst wenn alle Fragen richtig"""
+        score = answer_data.get("score", 0)
+        max_score = answer_data.get("maxScore", 1)
+        success = answer_data.get("success", False)
+
+        # Nur als abgeschlossen werten wenn vollständig korrekt
+        fully_correct = success and (score == max_score) and (max_score > 0)
+
+        if not fully_correct:
+            # Noch nicht alle Fragen richtig – Rätsel läuft weiter
+            return
 
         if hasattr(self, 'timer'):
             self.timer.stop()

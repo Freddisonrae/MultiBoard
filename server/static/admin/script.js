@@ -249,6 +249,7 @@ function switchTab(tabName) {
     if (tabName === 'rooms') loadRooms();
     else if (tabName === 'puzzles') loadPuzzles();
     else if (tabName === 'students') loadStudents();
+    else if (tabName === 'stats') loadLeaderboard();
 }
 
 async function loadRooms() {
@@ -720,4 +721,88 @@ function showModal(title, content) {
 
 function closeModal() {
     document.getElementById('modal-overlay').classList.remove('active');
+}
+
+async function loadLeaderboard() {
+    const select = document.getElementById('leaderboard-room-select');
+
+    // Räume in den Filter laden (einmalig)
+    if (select.options.length === 1) {
+        try {
+            const rooms = await apiRequest('/api/admin/rooms');
+            rooms.forEach(r => {
+                const opt = document.createElement('option');
+                opt.value = r.id;
+                opt.textContent = r.name;
+                select.appendChild(opt);
+            });
+        } catch (e) { /* ignore */ }
+
+        select.addEventListener('change', loadLeaderboard);
+    }
+
+    const roomId = select.value;
+    const endpoint = roomId
+        ? `/api/admin/leaderboard?room_id=${roomId}`
+        : '/api/admin/leaderboard';
+
+    try {
+        const entries = await apiRequest(endpoint);
+        displayLeaderboard(entries);
+    } catch (error) {
+        console.error('Fehler beim Laden des Leaderboards:', error);
+        document.getElementById('leaderboard-content').innerHTML =
+            '<p style="text-align:center;color:#999;">Fehler beim Laden.</p>';
+    }
+}
+
+function displayLeaderboard(entries) {
+    const container = document.getElementById('leaderboard-content');
+
+    if (entries.length === 0) {
+        container.innerHTML = '<p style="text-align:center;color:#999;">Noch keine Ergebnisse vorhanden.</p>';
+        return;
+    }
+
+    const medals = ['🥇', '🥈', '🥉'];
+
+    container.innerHTML = `
+        <table class="leaderboard-table">
+            <thead>
+                <tr>
+                    <th>Rang</th>
+                    <th>Schüler</th>
+                    <th>Richtige Antworten</th>
+                    <th>Gesamt beantwortet</th>
+                    <th>Quote</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${entries.map(e => {
+                    const pct = e.total_answers > 0
+                        ? Math.round((e.correct_answers / e.total_answers) * 100)
+                        : 0;
+                    const medal = medals[e.rank - 1] || `#${e.rank}`;
+                    const isTop3 = e.rank <= 3;
+                    return `
+                        <tr class="${isTop3 ? 'top-rank' : ''}">
+                            <td class="rank-cell">${medal}</td>
+                            <td class="name-cell">
+                                <strong>${e.full_name}</strong>
+                                <span class="username-label">@${e.username}</span>
+                            </td>
+                            <td class="score-cell correct">${e.correct_answers}</td>
+                            <td class="score-cell">${e.total_answers}</td>
+                            <td class="score-cell">
+                                <div class="pct-bar-wrap">
+                                    <div class="pct-bar" style="width:${pct}%"></div>
+                                    <span>${pct}%</span>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                }).join('')}
+            </tbody>
+        </table>
+    `;
 }

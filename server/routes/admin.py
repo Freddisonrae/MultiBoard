@@ -456,3 +456,68 @@ async def approve_teacher(
     db.commit()
 
     return {"message": message, "approved": approve}
+
+# ==================== LEADERBOARD ====================
+
+class LeaderboardEntry(BaseModel):
+    rank: int
+    student_id: int
+    full_name: str
+    username: str
+    correct_answers: int
+    total_answers: int
+
+@router.get("/leaderboard", response_model=List[LeaderboardEntry])
+async def get_leaderboard(
+        room_id: Optional[int] = None,
+        current_user: models.User = Depends(get_current_teacher),
+        db: Session = Depends(get_db)
+):
+    """Leaderboard: Schüler mit den meisten richtigen Antworten"""
+    from sqlalchemy import func
+
+    query = db.query(
+        models.User.id.label("student_id"),
+        models.User.full_name,
+        models.User.username,
+        func.sum(
+            models.PuzzleResult.is_correct.cast(models.Integer)
+        ).label("correct_answers"),
+        func.count(models.PuzzleResult.id).label("total_answers")
+    ).join(
+        models.GameSession, models.GameSession.student_id == models.User.id
+    ).join(
+        models.PuzzleResult, models.PuzzleResult.session_id == models.GameSession.id
+    ).filter(
+        models.User.role == "student"
+    )
+
+    if room_id is not None:
+        # Nur Räume dieses Lehrers erlauben
+        db_room = db.query(models.Room).filter(
+            models.Room.id == room_id,
+            models.Room.teacher_id == current_user.id
+        ).first()
+        if not db_room:
+            raise HTTPException(status_code=404, detail="Raum nicht gefunden")
+        query = query.filter(models.GameSession.room_id == room_id)
+
+    results = query.group_by(
+        models.User.id,
+        models.User.full_name,
+        models.User.username
+    ).order_by(
+        func.sum(models.PuzzleResult.is_correct.cast(models.Integer)).desc()
+    ).all()
+
+    return [
+        LeaderboardEntry(
+            rank=i + 1,
+            student_id=row.student_id,
+            full_name=row.full_name or row.username,
+            username=row.username,
+            correct_answers=int(row.correct_answers or 0),
+            total_answers=int(row.total_answers or 0),
+        )
+        for i, row in enumerate(results)
+    ]
